@@ -1,98 +1,43 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  onSnapshot
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+# Inventory Dresses Web Viewer
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-  authDomain: "show-inventory.firebaseapp.com",
-  projectId: "show-inventory",
-  storageBucket: "show-inventory.appspot.com",
-  messagingSenderId: "697364304883",
-  appId: "1:697364304883:web:a7b41cc929228976533886",
-};
+This project is a simple web page to display your dresses inventory stored in Firebase Firestore.
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+## Features
 
-let dressList = [];
+- Real-time updates: Shows dresses currently in stock (`status` field = `"in_stock"`).
+- Search/filter dresses by Model, Color, or Size.
+- Clean and responsive UI for mobile and desktop.
 
-function subscribeDressesRealtime() {
-  const container = document.getElementById("dresses-container");
-  container.classList.remove("error");
-  container.classList.add("loading");
-  container.textContent = "Loading dresses...";
+## How to use
 
-  const dressesCol = collection(db, "dresses");
-  const q = query(dressesCol, where("status", "==", "in_stock"));
+1. Make sure you have a Firebase project with Firestore set up.
+2. Upload your dresses data in a collection named `dresses`. Each dress document must have at least the fields:
+   - `model` (string)
+   - `color` (string)
+   - `size` (string)
+   - `status` (string), set `"in_stock"` for available dresses.
+3. Update the Firebase config object in `index.html` with your Firebase credentials.
+4. Deploy this `index.html` file to a static web hosting service (e.g., GitHub Pages).
+5. Open the hosted page on any device (mobile, desktop) to see the live inventory.
+6. Use the search box to filter dresses instantly.
 
-  onSnapshot(q, (snapshot) => {
-    if (snapshot.empty) {
-      container.textContent = "No dresses found in stock.";
-      container.classList.remove("loading");
-      dressList = [];
-      displayDresses(dressList);
-      return;
+## Notes
+
+- The page automatically updates whenever the Firestore data changes.
+- Make sure Firestore security rules allow reading from `dresses` collection for your use case.
+- Customize the UI styles in `index.html` as you wish.
+
+---
+
+## Firebase Rules (example)
+
+```json
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /dresses/{dressId} {
+      allow read: if true;  // Adjust this for your security needs
+      allow write: if false; // No writes from this web page
     }
-
-    dressList = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    container.classList.remove("loading");
-    displayDresses(dressList);
-  }, (error) => {
-    container.textContent = "Error loading dresses: " + error.message;
-    container.classList.add("error");
-    container.classList.remove("loading");
-    console.error("Firestore realtime error:", error);
-  });
-}
-
-function displayDresses(list) {
-  const container = document.getElementById("dresses-container");
-  container.innerHTML = "";
-
-  if (list.length === 0) {
-    container.textContent = "No dresses found matching your search.";
-    return;
   }
-
-  list.forEach(dress => {
-    const div = document.createElement("div");
-    div.className = "dress-item";
-    div.innerHTML = `
-      <div><span class="label">Model:</span> ${dress.model}</div>
-      <div><span class="label">Color:</span> ${dress.color}</div>
-      <div><span class="label">Size:</span> ${dress.size}</div>
-      <div><span class="label">Barcode:</span> ${dress.id}</div>
-    `;
-    container.appendChild(div);
-  });
 }
-
-document.getElementById("searchBox").addEventListener("input", (e) => {
-  const queryText = e.target.value.trim().toLowerCase();
-
-  if (!queryText) {
-    displayDresses(dressList);
-    return;
-  }
-
-  const filtered = dressList.filter(dress =>
-    (dress.model && dress.model.toLowerCase().includes(queryText)) ||
-    (dress.color && dress.color.toLowerCase().includes(queryText)) ||
-    (dress.size && dress.size.toLowerCase().includes(queryText))
-  );
-
-  displayDresses(filtered);
-});
-
-window.onload = () => {
-  subscribeDressesRealtime();
-};
