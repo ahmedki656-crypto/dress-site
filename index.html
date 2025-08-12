@@ -5,65 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inventory Dresses</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f9f9f9;
-      margin: 0;
-    }
-    h2 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 15px;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; margin: 0; }
+    h2 { text-align: center; color: #333; margin-bottom: 15px; }
     #searchBox {
-      display: block;
-      width: 100%;
-      max-width: 600px;
-      margin: 0 auto 25px auto;
-      padding: 12px 15px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
-      transition: border-color 0.3s ease;
+      display: block; width: 100%; max-width: 600px; margin: 0 auto 25px auto;
+      padding: 12px 15px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px;
+      box-sizing: border-box; transition: border-color 0.3s ease;
     }
-    #searchBox:focus {
-      border-color: #007BFF;
-      outline: none;
-      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-    }
-    #dresses-container {
-      max-width: 600px;
-      margin: 0 auto;
-      min-height: 200px;
-    }
+    #searchBox:focus { border-color: #007BFF; outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.5);}
+    #dresses-container { max-width: 600px; margin: 0 auto; min-height: 200px; }
     .dress-item {
-      background-color: #fff;
-      border-radius: 8px;
-      padding: 18px 20px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      font-size: 17px;
-      color: #444;
-      line-height: 1.5;
+      background: #fff; border-radius: 8px; padding: 18px 20px; margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 17px; color: #444; line-height: 1.5;
       transition: background-color 0.2s ease;
     }
-    .dress-item:hover {
-      background-color: #e9f1ff;
-    }
-    .dress-item span.label {
-      font-weight: 700;
-      color: #555;
-      display: inline-block;
-      width: 90px;
-    }
-    #dresses-container.loading,
-    #dresses-container.error {
-      text-align: center;
-      font-style: italic;
-      color: #777;
-      margin-top: 50px;
+    .dress-item:hover { background-color: #e9f1ff; }
+    .dress-item span.label { font-weight: 700; color: #555; display: inline-block; width: 90px; }
+    #dresses-container.loading, #dresses-container.error {
+      text-align: center; font-style: italic; color: #777; margin-top: 50px;
     }
   </style>
 </head>
@@ -71,16 +30,9 @@
 
   <h2>Available Dresses in Stock</h2>
 
-  <input
-    type="text"
-    id="searchBox"
-    placeholder="Search by Model, Color, or Size..."
-    autocomplete="off"
-  />
+  <input type="text" id="searchBox" placeholder="Search by Model, Color, or Size..." autocomplete="off" />
 
-  <div id="dresses-container" class="loading">
-    Loading dresses...
-  </div>
+  <div id="dresses-container" class="loading">Loading dresses...</div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
