@@ -101,7 +101,9 @@
     import {
       getFirestore,
       collection,
-      getDocs,
+      query,
+      where,
+      onSnapshot
     } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
     /* إعدادات Firebase الخاصة بك */
@@ -121,38 +123,39 @@
     /* قائمة لحفظ بيانات الفساتين محلياً للبحث والتصفية */
     let dressList = [];
 
-    /* دالة لتحميل بيانات الفساتين من مجموعة "dresses" في Firestore */
-    async function fetchDresses() {
+    /* الدالة المسؤولة عن متابعة بيانات الفساتين في Firebase realtime */
+    function subscribeDressesRealtime() {
       const container = document.getElementById("dresses-container");
       container.classList.remove("error");
       container.classList.add("loading");
       container.textContent = "Loading dresses...";
 
-      try {
-        const dressesCol = collection(db, "dresses");
-        const dressSnapshot = await getDocs(dressesCol);
+      const dressesCol = collection(db, "dresses");
+      // استعلام لعرض الفساتين فقط التي status = "in_stock"
+      const q = query(dressesCol, where("status", "==", "in_stock"));
 
-        if (dressSnapshot.empty) {
+      onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
           container.textContent = "No dresses found in stock.";
           container.classList.remove("loading");
+          dressList = [];
+          displayDresses(dressList);
           return;
         }
 
-        /* تحويل كل مستند إلى كائن مع حفظ المعرف (الباركود) */
-        dressList = dressSnapshot.docs.map((doc) => ({
+        dressList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        /* عرض القائمة كاملة */
+        container.classList.remove("loading");
         displayDresses(dressList);
-      } catch (error) {
+      }, (error) => {
         container.textContent = "Error loading dresses: " + error.message;
         container.classList.add("error");
-        console.error("Firestore loading error:", error);
-      } finally {
         container.classList.remove("loading");
-      }
+        console.error("Firestore realtime error:", error);
+      });
     }
 
     /* دالة عرض الفساتين في صفحة الويب */
@@ -180,28 +183,26 @@
 
     /* إضافة مستمع لحدث الكتابة في مربع البحث لتصفية النتائج */
     document.getElementById("searchBox").addEventListener("input", (e) => {
-      const query = e.target.value.trim().toLowerCase();
+      const queryText = e.target.value.trim().toLowerCase();
 
-      if (!query) {
-        // إذا البحث فارغ، عرض القائمة الكاملة
+      if (!queryText) {
         displayDresses(dressList);
         return;
       }
 
-      // تصفية الفساتين بناءً على البحث في الموديل أو اللون أو المقاس
       const filtered = dressList.filter(
         (dress) =>
-          dress.model.toLowerCase().includes(query) ||
-          dress.color.toLowerCase().includes(query) ||
-          dress.size.toLowerCase().includes(query)
+          (dress.model && dress.model.toLowerCase().includes(queryText)) ||
+          (dress.color && dress.color.toLowerCase().includes(queryText)) ||
+          (dress.size && dress.size.toLowerCase().includes(queryText))
       );
 
       displayDresses(filtered);
     });
 
-    /* تحميل الفساتين عند تحميل الصفحة */
+    /* بدء الاشتراك عند تحميل الصفحة */
     window.onload = () => {
-      fetchDresses();
+      subscribeDressesRealtime();
     };
   </script>
 
