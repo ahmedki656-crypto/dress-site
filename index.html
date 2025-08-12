@@ -1,210 +1,98 @@
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inventory Dresses</title>
-  <style>
-    /* تصميم عام للصفحة */
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f9f9f9;
-      margin: 0;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
+  authDomain: "show-inventory.firebaseapp.com",
+  projectId: "show-inventory",
+  storageBucket: "show-inventory.appspot.com",
+  messagingSenderId: "697364304883",
+  appId: "1:697364304883:web:a7b41cc929228976533886",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let dressList = [];
+
+function subscribeDressesRealtime() {
+  const container = document.getElementById("dresses-container");
+  container.classList.remove("error");
+  container.classList.add("loading");
+  container.textContent = "Loading dresses...";
+
+  const dressesCol = collection(db, "dresses");
+  const q = query(dressesCol, where("status", "==", "in_stock"));
+
+  onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      container.textContent = "No dresses found in stock.";
+      container.classList.remove("loading");
+      dressList = [];
+      displayDresses(dressList);
+      return;
     }
 
-    /* عنوان الصفحة */
-    h2 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 15px;
-    }
+    dressList = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-    /* صندوق البحث */
-    #searchBox {
-      display: block;
-      width: 100%;
-      max-width: 600px;
-      margin: 0 auto 25px auto;
-      padding: 12px 15px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
-      transition: border-color 0.3s ease;
-    }
-    #searchBox:focus {
-      border-color: #007BFF;
-      outline: none;
-      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-    }
+    container.classList.remove("loading");
+    displayDresses(dressList);
+  }, (error) => {
+    container.textContent = "Error loading dresses: " + error.message;
+    container.classList.add("error");
+    container.classList.remove("loading");
+    console.error("Firestore realtime error:", error);
+  });
+}
 
-    /* حاوية الفساتين */
-    #dresses-container {
-      max-width: 600px;
-      margin: 0 auto;
-      min-height: 200px;
-    }
+function displayDresses(list) {
+  const container = document.getElementById("dresses-container");
+  container.innerHTML = "";
 
-    /* كل عنصر فستان */
-    .dress-item {
-      background-color: #fff;
-      border-radius: 8px;
-      padding: 18px 20px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      font-size: 17px;
-      color: #444;
-      line-height: 1.5;
-      transition: background-color 0.2s ease;
-    }
-    .dress-item:hover {
-      background-color: #e9f1ff;
-    }
+  if (list.length === 0) {
+    container.textContent = "No dresses found matching your search.";
+    return;
+  }
 
-    /* تسميات داخل عناصر الفساتين */
-    .dress-item span.label {
-      font-weight: 700;
-      color: #555;
-      display: inline-block;
-      width: 90px;
-    }
+  list.forEach(dress => {
+    const div = document.createElement("div");
+    div.className = "dress-item";
+    div.innerHTML = `
+      <div><span class="label">Model:</span> ${dress.model}</div>
+      <div><span class="label">Color:</span> ${dress.color}</div>
+      <div><span class="label">Size:</span> ${dress.size}</div>
+      <div><span class="label">Barcode:</span> ${dress.id}</div>
+    `;
+    container.appendChild(div);
+  });
+}
 
-    /* رسالة تحميل البيانات أو الأخطاء */
-    #dresses-container.loading,
-    #dresses-container.error {
-      text-align: center;
-      font-style: italic;
-      color: #777;
-      margin-top: 50px;
-    }
-  </style>
-</head>
-<body>
+document.getElementById("searchBox").addEventListener("input", (e) => {
+  const queryText = e.target.value.trim().toLowerCase();
 
-  <h2>Available Dresses in Stock</h2>
+  if (!queryText) {
+    displayDresses(dressList);
+    return;
+  }
 
-  <input
-    type="text"
-    id="searchBox"
-    placeholder="Search by Model, Color, or Size..."
-    autocomplete="off"
-  />
+  const filtered = dressList.filter(dress =>
+    (dress.model && dress.model.toLowerCase().includes(queryText)) ||
+    (dress.color && dress.color.toLowerCase().includes(queryText)) ||
+    (dress.size && dress.size.toLowerCase().includes(queryText))
+  );
 
-  <div id="dresses-container" class="loading">
-    Loading dresses...
-  </div>
+  displayDresses(filtered);
+});
 
-  <script type="module">
-    /* استيراد مكتبات Firebase الأساسية و Firestore */
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      query,
-      where,
-      onSnapshot
-    } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
-    /* إعدادات Firebase الخاصة بك */
-    const firebaseConfig = {
-      apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-      authDomain: "show-inventory.firebaseapp.com",
-      projectId: "show-inventory",
-      storageBucket: "show-inventory.appspot.com",
-      messagingSenderId: "697364304883",
-      appId: "1:697364304883:web:a7b41cc929228976533886",
-    };
-
-    /* تهيئة التطبيق وقاعدة البيانات */
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    /* قائمة لحفظ بيانات الفساتين محلياً للبحث والتصفية */
-    let dressList = [];
-
-    /* الدالة المسؤولة عن متابعة بيانات الفساتين في Firebase realtime */
-    function subscribeDressesRealtime() {
-      const container = document.getElementById("dresses-container");
-      container.classList.remove("error");
-      container.classList.add("loading");
-      container.textContent = "Loading dresses...";
-
-      const dressesCol = collection(db, "dresses");
-      // استعلام لعرض الفساتين فقط التي status = "in_stock"
-      const q = query(dressesCol, where("status", "==", "in_stock"));
-
-      onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-          container.textContent = "No dresses found in stock.";
-          container.classList.remove("loading");
-          dressList = [];
-          displayDresses(dressList);
-          return;
-        }
-
-        dressList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        container.classList.remove("loading");
-        displayDresses(dressList);
-      }, (error) => {
-        container.textContent = "Error loading dresses: " + error.message;
-        container.classList.add("error");
-        container.classList.remove("loading");
-        console.error("Firestore realtime error:", error);
-      });
-    }
-
-    /* دالة عرض الفساتين في صفحة الويب */
-    function displayDresses(list) {
-      const container = document.getElementById("dresses-container");
-      container.innerHTML = "";
-
-      if (list.length === 0) {
-        container.textContent = "No dresses found matching your search.";
-        return;
-      }
-
-      list.forEach((dress) => {
-        const div = document.createElement("div");
-        div.className = "dress-item";
-        div.innerHTML = `
-          <div><span class="label">Model:</span> ${dress.model}</div>
-          <div><span class="label">Color:</span> ${dress.color}</div>
-          <div><span class="label">Size:</span> ${dress.size}</div>
-          <div><span class="label">Barcode:</span> ${dress.id}</div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    /* إضافة مستمع لحدث الكتابة في مربع البحث لتصفية النتائج */
-    document.getElementById("searchBox").addEventListener("input", (e) => {
-      const queryText = e.target.value.trim().toLowerCase();
-
-      if (!queryText) {
-        displayDresses(dressList);
-        return;
-      }
-
-      const filtered = dressList.filter(
-        (dress) =>
-          (dress.model && dress.model.toLowerCase().includes(queryText)) ||
-          (dress.color && dress.color.toLowerCase().includes(queryText)) ||
-          (dress.size && dress.size.toLowerCase().includes(queryText))
-      );
-
-      displayDresses(filtered);
-    });
-
-    /* بدء الاشتراك عند تحميل الصفحة */
-    window.onload = () => {
-      subscribeDressesRealtime();
-    };
-  </script>
-
-</body>
-</html>
+window.onload = () => {
+  subscribeDressesRealtime();
+};
