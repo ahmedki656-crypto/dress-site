@@ -65,7 +65,7 @@
       container.textContent = "Loading dresses...";
 
       const dressesCol = collection(db, "dresses");
-      const q = query(dressesCol, where("status", "==", "in_stock"));
+     displayDresses(dressList);
 
       onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
@@ -137,3 +137,4 @@
 
 </body>
 </html>
+
