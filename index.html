@@ -1,140 +1,104 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inventory Dresses</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; margin: 0; }
-    h2 { text-align: center; color: #333; margin-bottom: 15px; }
-    #searchBox {
-      display: block; width: 100%; max-width: 600px; margin: 0 auto 25px auto;
-      padding: 12px 15px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px;
-      box-sizing: border-box; transition: border-color 0.3s ease;
-    }
-    #searchBox:focus { border-color: #007BFF; outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.5);}
-    #dresses-container { max-width: 600px; margin: 0 auto; min-height: 200px; }
-    .dress-item {
-      background: #fff; border-radius: 8px; padding: 18px 20px; margin-bottom: 15px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 17px; color: #444; line-height: 1.5;
-      transition: background-color 0.2s ease;
-    }
-    .dress-item:hover { background-color: #e9f1ff; }
-    .dress-item span.label { font-weight: 700; color: #555; display: inline-block; width: 90px; }
-    #dresses-container.loading, #dresses-container.error {
-      text-align: center; font-style: italic; color: #777; margin-top: 50px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fustan Inventory</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+        h2 { text-align: center; color: #333; }
+        input { margin: 5px 0; padding: 5px; width: 100%; max-width: 400px; }
+        table { border-collapse: collapse; width: 100%; max-width: 700px; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+    </style>
 </head>
 <body>
+    <h2>Fustan Inventory</h2>
 
-  <h2>Available Dresses in Stock</h2>
+    <input type="text" id="searchModel" placeholder="Search by Model">
+    <input type="text" id="searchColor" placeholder="Search by Color">
+    <input type="text" id="searchSize" placeholder="Search by Size">
 
-  <input type="text" id="searchBox" placeholder="Search by Model, Color, or Size..." autocomplete="off" />
+    <table id="dressesTable">
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Color</th>
+                <th>Size</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
-  <div id="dresses-container" class="loading">Loading dresses...</div>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      query,
-      where,
-      onSnapshot
-    } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-      authDomain: "show-inventory.firebaseapp.com",
-      projectId: "show-inventory",
-      storageBucket: "show-inventory.appspot.com",
-      messagingSenderId: "697364304883",
-      appId: "1:697364304883:web:a7b41cc929228976533886",
-    };
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        const tableBody = document.querySelector("#dressesTable tbody");
+        const searchModel = document.getElementById("searchModel");
+        const searchColor = document.getElementById("searchColor");
+        const searchSize = document.getElementById("searchSize");
 
-    let dressList = [];
-
-    function subscribeDressesRealtime() {
-      const container = document.getElementById("dresses-container");
-      container.classList.remove("error");
-      container.classList.add("loading");
-      container.textContent = "Loading dresses...";
-
-      const dressesCol = collection(db, "dresses");
-     displayDresses(dressList);
-
-      onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-          container.textContent = "No dresses found in stock.";
-          container.classList.remove("loading");
-          dressList = [];
-          displayDresses(dressList);
-          return;
+        function updateTable(dresses) {
+            tableBody.innerHTML = "";
+            for (let key in dresses) {
+                const d = dresses[key];
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${d.model}</td>
+                    <td>${d.color}</td>
+                    <td>${d.size}</td>
+                    <td>${d.count || 1}</td>
+                `;
+                tableBody.appendChild(tr);
+            }
         }
 
-        dressList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        function fetchData() {
+            db.ref("/dresses").on("value", snapshot => {
+                const data = snapshot.val() || {};
+                // Apply filter
+                const modelFilter = searchModel.value.toLowerCase();
+                const colorFilter = searchColor.value.toLowerCase();
+                const sizeFilter = searchSize.value.toLowerCase();
+                const filtered = {};
+                for (let key in data) {
+                    const dress = data[key];
+                    if ((modelFilter && !dress.model.toLowerCase().includes(modelFilter)) ||
+                        (colorFilter && !dress.color.toLowerCase().includes(colorFilter)) ||
+                        (sizeFilter && !dress.size.toLowerCase().includes(sizeFilter))) continue;
+                    filtered[key] = dress;
+                }
+                updateTable(filtered);
+            });
+        }
 
-        container.classList.remove("loading");
-        displayDresses(dressList);
-      }, (error) => {
-        container.textContent = "Error loading dresses: " + error.message;
-        container.classList.add("error");
-        container.classList.remove("loading");
-        console.error("Firestore realtime error:", error);
-      });
-    }
+        // Filters: live update
+        [searchModel, searchColor, searchSize].forEach(input => {
+            input.addEventListener("input", fetchData);
+        });
 
-    function displayDresses(list) {
-      const container = document.getElementById("dresses-container");
-      container.innerHTML = "";
-
-      if (list.length === 0) {
-        container.textContent = "No dresses found matching your search.";
-        return;
-      }
-
-      list.forEach(dress => {
-        const div = document.createElement("div");
-        div.className = "dress-item";
-        div.innerHTML = `
-          <div><span class="label">Model:</span> ${dress.model}</div>
-          <div><span class="label">Color:</span> ${dress.color}</div>
-          <div><span class="label">Size:</span> ${dress.size}</div>
-          <div><span class="label">Barcode:</span> ${dress.id}</div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    document.getElementById("searchBox").addEventListener("input", (e) => {
-      const queryText = e.target.value.trim().toLowerCase();
-
-      if (!queryText) {
-        displayDresses(dressList);
-        return;
-      }
-
-      const filtered = dressList.filter(dress =>
-        (dress.model && dress.model.toLowerCase().includes(queryText)) ||
-        (dress.color && dress.color.toLowerCase().includes(queryText)) ||
-        (dress.size && dress.size.toLowerCase().includes(queryText))
-      );
-
-      displayDresses(filtered);
-    });
-
-    window.onload = () => {
-      subscribeDressesRealtime();
-    };
-  </script>
-
+        fetchData(); // load initially
+    </script>
 </body>
 </html>
+
 
