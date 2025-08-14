@@ -1,104 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fustan Inventory</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-        h2 { text-align: center; color: #333; }
-        input { margin: 5px 0; padding: 5px; width: 100%; max-width: 400px; }
-        table { border-collapse: collapse; width: 100%; max-width: 700px; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background-color: #f2f2f2; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory Dresses</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      color: #444;
+    }
+    #searchBox {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #eee;
+    }
+    tr:hover {
+      background: #f1f1f1;
+    }
+  </style>
 </head>
 <body>
-    <h2>Fustan Inventory</h2>
 
-    <input type="text" id="searchModel" placeholder="Search by Model">
-    <input type="text" id="searchColor" placeholder="Search by Color">
-    <input type="text" id="searchSize" placeholder="Search by Size">
+  <h2>Available Dresses</h2>
+  <input type="text" id="searchBox" placeholder="Search by model, color, or size...">
 
-    <table id="dressesTable">
-        <thead>
-            <tr>
-                <th>Model</th>
-                <th>Color</th>
-                <th>Size</th>
-                <th>Count</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+  <table id="dressesTable">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Color</th>
+        <th>Size</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Data will be inserted here -->
+    </tbody>
+  </table>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
-    <script>
-        // Firebase config
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-            projectId: "YOUR_PROJECT",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
+      authDomain: "show-inventory.firebaseapp.com",
+      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "show-inventory",
+      storageBucket: "show-inventory.firebasestorage.app",
+      messagingSenderId: "697364304883",
+      appId: "1:697364304883:web:e559c3e444497e3b533886",
+      measurementId: "G-CTM21XYKLC"
+    };
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-        const tableBody = document.querySelector("#dressesTable tbody");
-        const searchModel = document.getElementById("searchModel");
-        const searchColor = document.getElementById("searchColor");
-        const searchSize = document.getElementById("searchSize");
+    const tableBody = document.getElementById('tableBody');
+    const searchBox = document.getElementById('searchBox');
 
-        function updateTable(dresses) {
-            tableBody.innerHTML = "";
-            for (let key in dresses) {
-                const d = dresses[key];
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${d.model}</td>
-                    <td>${d.color}</td>
-                    <td>${d.size}</td>
-                    <td>${d.count || 1}</td>
-                `;
-                tableBody.appendChild(tr);
-            }
-        }
+    // Load Data from Firebase
+    const dressesRef = ref(db, 'inventory');
+    onValue(dressesRef, (snapshot) => {
+      const data = snapshot.val();
+      tableBody.innerHTML = '';
 
-        function fetchData() {
-            db.ref("/dresses").on("value", snapshot => {
-                const data = snapshot.val() || {};
-                // Apply filter
-                const modelFilter = searchModel.value.toLowerCase();
-                const colorFilter = searchColor.value.toLowerCase();
-                const sizeFilter = searchSize.value.toLowerCase();
-                const filtered = {};
-                for (let key in data) {
-                    const dress = data[key];
-                    if ((modelFilter && !dress.model.toLowerCase().includes(modelFilter)) ||
-                        (colorFilter && !dress.color.toLowerCase().includes(colorFilter)) ||
-                        (sizeFilter && !dress.size.toLowerCase().includes(sizeFilter))) continue;
-                    filtered[key] = dress;
-                }
-                updateTable(filtered);
-            });
-        }
-
-        // Filters: live update
-        [searchModel, searchColor, searchSize].forEach(input => {
-            input.addEventListener("input", fetchData);
+      if (data) {
+        Object.values(data).forEach(dress => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${dress.model}</td>
+            <td>${dress.color}</td>
+            <td>${dress.size}</td>
+          `;
+          tableBody.appendChild(row);
         });
+      }
+    });
 
-        fetchData(); // load initially
-    </script>
+    // Search Filter
+    searchBox.addEventListener('input', () => {
+      const filter = searchBox.value.toLowerCase();
+      const rows = tableBody.getElementsByTagName('tr');
+      for (let i = 0; i < rows.length; i++) {
+        const cols = rows[i].getElementsByTagName('td');
+        let match = false;
+        for (let j = 0; j < cols.length; j++) {
+          if (cols[j].innerText.toLowerCase().includes(filter)) {
+            match = true;
+            break;
+          }
+        }
+        rows[i].style.display = match ? '' : 'none';
+      }
+    });
+  </script>
+
 </body>
 </html>
+
 
 
