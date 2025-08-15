@@ -68,9 +68,9 @@
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
-      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
+      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app/",
       projectId: "show-inventory",
-      storageBucket: "show-inventory.firebasestorage.app",
+      storageBucket: "show-inventory.appspot.com",
       messagingSenderId: "697364304883",
       appId: "1:697364304883:web:e559c3e444497e3b533886",
       measurementId: "G-CTM21XYKLC"
@@ -80,11 +80,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // عناصر الصفحة
     const tableBody = document.getElementById('tableBody');
     const searchBox = document.getElementById('searchBox');
 
-    // Load Data from Firebase
-    const dressesRef = ref(db, 'inventory');
+    // جلب البيانات من Firebase Realtime
+    const dressesRef = ref(db, 'dresses');
     onValue(dressesRef, (snapshot) => {
       const data = snapshot.val();
       tableBody.innerHTML = '';
@@ -93,16 +94,16 @@
         Object.values(data).forEach(dress => {
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td>${dress.model}</td>
-            <td>${dress.color}</td>
-            <td>${dress.size}</td>
+            <td>${dress.model || ''}</td>
+            <td>${dress.color || ''}</td>
+            <td>${dress.size || ''}</td>
           `;
           tableBody.appendChild(row);
         });
       }
     });
 
-    // Search Filter
+    // فلتر البحث مباشر
     searchBox.addEventListener('input', () => {
       const filter = searchBox.value.toLowerCase();
       const rows = tableBody.getElementsByTagName('tr');
@@ -122,6 +123,4 @@
 
 </body>
 </html>
-
-
 
