@@ -52,6 +52,7 @@
         <th>Model</th>
         <th>Color</th>
         <th>Size</th>
+        <th>Count</th>
       </tr>
     </thead>
     <tbody id="tableBody">
@@ -70,7 +71,7 @@
       authDomain: "show-inventory.firebaseapp.com",
       databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app/",
       projectId: "show-inventory",
-      storageBucket: "show-inventory.appspot.com",
+      storageBucket: "show-inventory.firebasestorage.app",
       messagingSenderId: "697364304883",
       appId: "1:697364304883:web:e559c3e444497e3b533886",
       measurementId: "G-CTM21XYKLC"
@@ -80,37 +81,47 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // عناصر الصفحة
     const tableBody = document.getElementById('tableBody');
     const searchBox = document.getElementById('searchBox');
 
-    // جلب البيانات من Firebase Realtime
+    // Load Data from Firebase
     const dressesRef = ref(db, 'dresses');
     onValue(dressesRef, (snapshot) => {
       const data = snapshot.val();
-      tableBody.innerHTML = '';
+      const grouped = {};
 
+      // جمع الفساتين حسب Model+Color+Size وحساب العدد (فقط المتوفرة)
       if (data) {
         Object.values(data).forEach(dress => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${dress.model || ''}</td>
-            <td>${dress.color || ''}</td>
-            <td>${dress.size || ''}</td>
-          `;
-          tableBody.appendChild(row);
+          if (dress.status !== "in_stock") return; // فقط المتوفرة
+          const key = `${dress.model}|${dress.color}|${dress.size}`;
+          grouped[key] = (grouped[key] || 0) + 1;
         });
+      }
+
+      tableBody.innerHTML = '';
+      for (const key in grouped) {
+        const [model, color, size] = key.split('|');
+        const count = grouped[key];
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${model}</td>
+          <td>${color}</td>
+          <td>${size}</td>
+          <td>${count}</td>
+        `;
+        tableBody.appendChild(row);
       }
     });
 
-    // فلتر البحث مباشر
+    // Search Filter
     searchBox.addEventListener('input', () => {
       const filter = searchBox.value.toLowerCase();
       const rows = tableBody.getElementsByTagName('tr');
       for (let i = 0; i < rows.length; i++) {
         const cols = rows[i].getElementsByTagName('td');
         let match = false;
-        for (let j = 0; j < cols.length; j++) {
+        for (let j = 0; j < cols.length - 1; j++) { // لا يشمل العمود Count
           if (cols[j].innerText.toLowerCase().includes(filter)) {
             match = true;
             break;
@@ -123,5 +134,6 @@
 
 </body>
 </html>
+
 
 
