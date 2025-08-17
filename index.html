@@ -6,23 +6,21 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
     h2 { color: #333; text-align: center; }
-    .search-boxes { display: flex; gap: 10px; margin-bottom: 10px; }
-    .search-boxes input { flex: 1; padding: 8px; }
-    button { padding: 8px 12px; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    .filters { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+    .filters input { padding: 8px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
     th { background: #eee; }
-    #noResults { text-align: center; color: red; margin-top: 15px; display: none; }
+    .count { font-weight: bold; color: darkblue; }
   </style>
 </head>
 <body>
-  <h2>Available Dresses</h2>
+  <h2>Inventory Dresses</h2>
 
-  <div class="search-boxes">
-    <input type="text" id="searchModel" placeholder="Search by Model">
-    <input type="text" id="searchColor" placeholder="Search by Color">
-    <input type="text" id="searchSize" placeholder="Search by Size">
-    <button id="resetBtn">Reset</button>
+  <div class="filters">
+    <input type="text" id="searchModel" placeholder="Search by Model...">
+    <input type="text" id="searchColor" placeholder="Search by Color...">
+    <input type="text" id="searchSize" placeholder="Search by Size...">
   </div>
 
   <table id="dressesTable">
@@ -37,18 +35,17 @@
     <tbody></tbody>
   </table>
 
-  <p id="noResults">No results found.</p>
+  <!-- Firebase -->
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
-
-  <script>
-    // إعدادات Firebase تبعتك
+    // Config
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
-      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
+      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app/",
       projectId: "show-inventory",
       storageBucket: "show-inventory.firebasestorage.app",
       messagingSenderId: "697364304883",
@@ -56,78 +53,59 @@
       measurementId: "G-CTM21XYKLC"
     };
 
-    // تشغيل Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
     const tableBody = document.querySelector("#dressesTable tbody");
     const searchModel = document.getElementById("searchModel");
     const searchColor = document.getElementById("searchColor");
     const searchSize = document.getElementById("searchSize");
-    const resetBtn = document.getElementById("resetBtn");
-    const noResults = document.getElementById("noResults");
 
-    let dressesData = [];
+    let dresses = [];
 
-    // جلب الفساتين من Firebase
-    db.ref("dresses").on("value", snapshot => {
+    // Fetch from Firebase
+    onValue(ref(db, "dresses"), (snapshot) => {
       const data = snapshot.val() || {};
-      dressesData = Object.values(data);
+      dresses = Object.values(data);
+
       renderTable();
     });
 
-    // فلترة حسب الحقول
     function renderTable() {
       const modelFilter = searchModel.value.toLowerCase();
       const colorFilter = searchColor.value.toLowerCase();
       const sizeFilter = searchSize.value.toLowerCase();
 
-      // حساب العدد حسب (model+color+size)
-      const counts = {};
-      dressesData.forEach(d => {
-        if (
-          d.model.toLowerCase().includes(modelFilter) &&
-          d.color.toLowerCase().includes(colorFilter) &&
-          d.size.toLowerCase().includes(sizeFilter)
-        ) {
-          const key = `${d.model}-${d.color}-${d.size}`;
-          counts[key] = (counts[key] || 0) + 1;
+      const filtered = dresses.filter(d =>
+        d.model.toLowerCase().includes(modelFilter) &&
+        d.color.toLowerCase().includes(colorFilter) &&
+        d.size.toLowerCase().includes(sizeFilter)
+      );
+
+      const grouped = {};
+      filtered.forEach(d => {
+        const key = `${d.model}-${d.color}-${d.size}`;
+        if (!grouped[key]) {
+          grouped[key] = { ...d, count: 0 };
         }
+        grouped[key].count++;
       });
 
-      // عرض النتائج
       tableBody.innerHTML = "";
-      if (Object.keys(counts).length === 0) {
-        noResults.style.display = "block";
-        return;
-      }
-      noResults.style.display = "none";
-
-      Object.entries(counts).forEach(([key, count]) => {
-        const [model, color, size] = key.split("-");
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${model}</td>
-          <td>${color}</td>
-          <td>${size}</td>
-          <td>${count}</td>
-        `;
-        tableBody.appendChild(tr);
+      Object.values(grouped).forEach(item => {
+        const row = `<tr>
+          <td>${item.model}</td>
+          <td>${item.color}</td>
+          <td>${item.size}</td>
+          <td class="count">${item.count}</td>
+        </tr>`;
+        tableBody.innerHTML += row;
       });
     }
 
-    // تفعيل البحث التفاعلي
-    [searchModel, searchColor, searchSize].forEach(input => {
-      input.addEventListener("input", renderTable);
-    });
-
-    // زر Reset
-    resetBtn.addEventListener("click", () => {
-      searchModel.value = "";
-      searchColor.value = "";
-      searchSize.value = "";
-      renderTable();
-    });
+    searchModel.addEventListener("input", renderTable);
+    searchColor.addEventListener("input", renderTable);
+    searchSize.addEventListener("input", renderTable);
   </script>
 </body>
 </html>
