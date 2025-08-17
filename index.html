@@ -4,53 +4,25 @@
   <meta charset="UTF-8">
   <title>Inventory Dresses</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    h2 {
-      color: #333;
-      text-align: center;
-    }
-    .search-container {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .search-container input {
-      padding: 8px;
-      width: 200px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      background: #fff;
-    }
-    table, th, td {
-      border: 1px solid #ddd;
-    }
-    th, td {
-      padding: 10px;
-      text-align: center;
-    }
-    th {
-      background: #f4f4f4;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    h2 { color: #333; text-align: center; }
+    .search-boxes { display: flex; gap: 10px; margin-bottom: 10px; }
+    .search-boxes input { flex: 1; padding: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #eee; }
+    #noResults { text-align: center; color: red; margin-top: 15px; display: none; }
   </style>
 </head>
 <body>
   <h2>Available Dresses</h2>
 
-  <div class="search-container">
+  <div class="search-boxes">
     <input type="text" id="searchModel" placeholder="Search by Model">
     <input type="text" id="searchColor" placeholder="Search by Color">
     <input type="text" id="searchSize" placeholder="Search by Size">
+    <button id="resetBtn">Reset</button>
   </div>
 
   <table id="dressesTable">
@@ -62,86 +34,103 @@
         <th>Count</th>
       </tr>
     </thead>
-    <tbody id="dressesBody"></tbody>
+    <tbody></tbody>
   </table>
 
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+  <p id="noResults">No results found.</p>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
+
   <script>
-    // Firebase config (بدل المعلومات بمعلومات مشروعك)
-onst firebaseConfig = {
-  apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-  authDomain: "show-inventory.firebaseapp.com",
-  databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app/",
-  projectId: "show-inventory",
-  storageBucket: "show-inventory.firebasestorage.app",
-  messagingSenderId: "697364304883",
-  appId: "1:697364304883:web:e559c3e444497e3b533886",
-  measurementId: "G-CTM21XYKLC"
-};
+    // إعدادات Firebase تبعتك
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
+      authDomain: "show-inventory.firebaseapp.com",
+      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "show-inventory",
+      storageBucket: "show-inventory.firebasestorage.app",
+      messagingSenderId: "697364304883",
+      appId: "1:697364304883:web:e559c3e444497e3b533886",
+      measurementId: "G-CTM21XYKLC"
+    };
 
+    // تشغيل Firebase
     const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const db = firebase.database();
 
-    const tableBody = document.getElementById("dressesBody");
+    const tableBody = document.querySelector("#dressesTable tbody");
     const searchModel = document.getElementById("searchModel");
     const searchColor = document.getElementById("searchColor");
     const searchSize = document.getElementById("searchSize");
+    const resetBtn = document.getElementById("resetBtn");
+    const noResults = document.getElementById("noResults");
 
     let dressesData = [];
 
-    // تحميل البيانات من Firebase
-    database.ref("dresses").on("value", snapshot => {
-      const data = snapshot.val();
-      dressesData = [];
-
-      for (let barcode in data) {
-        const item = data[barcode];
-        if (item.status === "in_stock") {
-          dressesData.push(item);
-        }
-      }
+    // جلب الفساتين من Firebase
+    db.ref("dresses").on("value", snapshot => {
+      const data = snapshot.val() || {};
+      dressesData = Object.values(data);
       renderTable();
     });
 
-    // فلترة وعرض الجدول
+    // فلترة حسب الحقول
     function renderTable() {
-      tableBody.innerHTML = "";
-      const filtered = dressesData.filter(item =>
-        item.model.toLowerCase().includes(searchModel.value.toLowerCase()) &&
-        item.color.toLowerCase().includes(searchColor.value.toLowerCase()) &&
-        item.size.toLowerCase().includes(searchSize.value.toLowerCase())
-      );
+      const modelFilter = searchModel.value.toLowerCase();
+      const colorFilter = searchColor.value.toLowerCase();
+      const sizeFilter = searchSize.value.toLowerCase();
 
-      // تجميع حسب (model + color + size)
-      const grouped = {};
-      filtered.forEach(item => {
-        const key = `${item.model}_${item.color}_${item.size}`;
-        if (!grouped[key]) {
-          grouped[key] = { ...item, count: 0 };
+      // حساب العدد حسب (model+color+size)
+      const counts = {};
+      dressesData.forEach(d => {
+        if (
+          d.model.toLowerCase().includes(modelFilter) &&
+          d.color.toLowerCase().includes(colorFilter) &&
+          d.size.toLowerCase().includes(sizeFilter)
+        ) {
+          const key = `${d.model}-${d.color}-${d.size}`;
+          counts[key] = (counts[key] || 0) + 1;
         }
-        grouped[key].count++;
       });
 
       // عرض النتائج
-      Object.values(grouped).forEach(item => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${item.model}</td>
-          <td>${item.color}</td>
-          <td>${item.size}</td>
-          <td>${item.count}</td>
+      tableBody.innerHTML = "";
+      if (Object.keys(counts).length === 0) {
+        noResults.style.display = "block";
+        return;
+      }
+      noResults.style.display = "none";
+
+      Object.entries(counts).forEach(([key, count]) => {
+        const [model, color, size] = key.split("-");
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${model}</td>
+          <td>${color}</td>
+          <td>${size}</td>
+          <td>${count}</td>
         `;
-        tableBody.appendChild(row);
+        tableBody.appendChild(tr);
       });
     }
 
-    // ربط الفلاتر مع البحث
-    searchModel.addEventListener("input", renderTable);
-    searchColor.addEventListener("input", renderTable);
-    searchSize.addEventListener("input", renderTable);
+    // تفعيل البحث التفاعلي
+    [searchModel, searchColor, searchSize].forEach(input => {
+      input.addEventListener("input", renderTable);
+    });
+
+    // زر Reset
+    resetBtn.addEventListener("click", () => {
+      searchModel.value = "";
+      searchColor.value = "";
+      searchSize.value = "";
+      renderTable();
+    });
   </script>
 </body>
 </html>
+
 
 
