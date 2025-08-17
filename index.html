@@ -2,49 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inventory Dresses</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      margin: 0;
       padding: 20px;
+      background: #f9f9f9;
     }
     h2 {
+      color: #333;
       text-align: center;
-      color: #444;
     }
-    #searchBox {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      font-size: 16px;
+    .search-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .search-container input {
+      padding: 8px;
+      width: 200px;
       border: 1px solid #ccc;
-      border-radius: 5px;
+      border-radius: 4px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
+      margin-top: 15px;
       background: #fff;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
     }
     th, td {
       padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
+      text-align: center;
     }
     th {
-      background: #eee;
-    }
-    tr:hover {
-      background: #f1f1f1;
+      background: #f4f4f4;
     }
   </style>
 </head>
 <body>
-
   <h2>Available Dresses</h2>
-  <input type="text" id="searchBox" placeholder="Search by model, color, or size...">
+
+  <div class="search-container">
+    <input type="text" id="searchModel" placeholder="Search by Model">
+    <input type="text" id="searchColor" placeholder="Search by Color">
+    <input type="text" id="searchSize" placeholder="Search by Size">
+  </div>
 
   <table id="dressesTable">
     <thead>
@@ -55,85 +62,83 @@
         <th>Count</th>
       </tr>
     </thead>
-    <tbody id="tableBody">
-      <!-- Data will be inserted here -->
-    </tbody>
+    <tbody id="dressesBody"></tbody>
   </table>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
-
-    // Firebase Config
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+  <script>
+    // Firebase config (بدل المعلومات بمعلومات مشروعك)
     const firebaseConfig = {
-      apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-      authDomain: "show-inventory.firebaseapp.com",
-      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app/",
-      projectId: "show-inventory",
-      storageBucket: "show-inventory.firebasestorage.app",
-      messagingSenderId: "697364304883",
-      appId: "1:697364304883:web:e559c3e444497e3b533886",
-      measurementId: "G-CTM21XYKLC"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-    const tableBody = document.getElementById('tableBody');
-    const searchBox = document.getElementById('searchBox');
+    const tableBody = document.getElementById("dressesBody");
+    const searchModel = document.getElementById("searchModel");
+    const searchColor = document.getElementById("searchColor");
+    const searchSize = document.getElementById("searchSize");
 
-    // Load Data from Firebase
-    const dressesRef = ref(db, 'dresses');
-    onValue(dressesRef, (snapshot) => {
+    let dressesData = [];
+
+    // تحميل البيانات من Firebase
+    database.ref("dresses").on("value", snapshot => {
       const data = snapshot.val();
-      const grouped = {};
+      dressesData = [];
 
-      // جمع الفساتين حسب Model+Color+Size وحساب العدد (فقط المتوفرة)
-      if (data) {
-        Object.values(data).forEach(dress => {
-          if (dress.status !== "in_stock") return; // فقط المتوفرة
-          const key = `${dress.model}|${dress.color}|${dress.size}`;
-          grouped[key] = (grouped[key] || 0) + 1;
-        });
+      for (let barcode in data) {
+        const item = data[barcode];
+        if (item.status === "in_stock") {
+          dressesData.push(item);
+        }
       }
+      renderTable();
+    });
 
-      tableBody.innerHTML = '';
-      for (const key in grouped) {
-        const [model, color, size] = key.split('|');
-        const count = grouped[key];
-        const row = document.createElement('tr');
+    // فلترة وعرض الجدول
+    function renderTable() {
+      tableBody.innerHTML = "";
+      const filtered = dressesData.filter(item =>
+        item.model.toLowerCase().includes(searchModel.value.toLowerCase()) &&
+        item.color.toLowerCase().includes(searchColor.value.toLowerCase()) &&
+        item.size.toLowerCase().includes(searchSize.value.toLowerCase())
+      );
+
+      // تجميع حسب (model + color + size)
+      const grouped = {};
+      filtered.forEach(item => {
+        const key = `${item.model}_${item.color}_${item.size}`;
+        if (!grouped[key]) {
+          grouped[key] = { ...item, count: 0 };
+        }
+        grouped[key].count++;
+      });
+
+      // عرض النتائج
+      Object.values(grouped).forEach(item => {
+        const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${model}</td>
-          <td>${color}</td>
-          <td>${size}</td>
-          <td>${count}</td>
+          <td>${item.model}</td>
+          <td>${item.color}</td>
+          <td>${item.size}</td>
+          <td>${item.count}</td>
         `;
         tableBody.appendChild(row);
-      }
-    });
+      });
+    }
 
-    // Search Filter
-    searchBox.addEventListener('input', () => {
-      const filter = searchBox.value.toLowerCase();
-      const rows = tableBody.getElementsByTagName('tr');
-      for (let i = 0; i < rows.length; i++) {
-        const cols = rows[i].getElementsByTagName('td');
-        let match = false;
-        for (let j = 0; j < cols.length - 1; j++) { // لا يشمل العمود Count
-          if (cols[j].innerText.toLowerCase().includes(filter)) {
-            match = true;
-            break;
-          }
-        }
-        rows[i].style.display = match ? '' : 'none';
-      }
-    });
+    // ربط الفلاتر مع البحث
+    searchModel.addEventListener("input", renderTable);
+    searchColor.addEventListener("input", renderTable);
+    searchSize.addEventListener("input", renderTable);
   </script>
-
 </body>
 </html>
-
-
-
