@@ -4,26 +4,55 @@
   <meta charset="UTF-8">
   <title>Inventory Dresses</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h2 { color: #333; text-align: center; }
-    .filters { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
-    .filters input { padding: 8px; font-size: 14px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #eee; }
-    .count { font-weight: bold; color: darkblue; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .filters {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .filters input {
+      padding: 6px;
+      width: 180px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background: #eee;
+    }
   </style>
 </head>
 <body>
-  <h2>Inventory Dresses</h2>
+  <h2>Available Dresses</h2>
 
+  <!-- فلاتر البحث -->
   <div class="filters">
-    <input type="text" id="searchModel" placeholder="Search by Model...">
-    <input type="text" id="searchColor" placeholder="Search by Color...">
-    <input type="text" id="searchSize" placeholder="Search by Size...">
+    <input type="text" id="filterModel" placeholder="Search Model...">
+    <input type="text" id="filterColor" placeholder="Search Color...">
+    <input type="text" id="filterSize" placeholder="Search Size...">
   </div>
 
-  <table id="dressesTable">
+  <!-- جدول عرض البيانات -->
+  <table>
     <thead>
       <tr>
         <th>Model</th>
@@ -32,20 +61,18 @@
         <th>Count</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="dressesTable"></tbody>
   </table>
 
   <!-- Firebase -->
   <script type="module">
-    // Import Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
-    // Config
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
-      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app/",
+      databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "show-inventory",
       storageBucket: "show-inventory.firebasestorage.app",
       messagingSenderId: "697364304883",
@@ -56,56 +83,56 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const tableBody = document.querySelector("#dressesTable tbody");
-    const searchModel = document.getElementById("searchModel");
-    const searchColor = document.getElementById("searchColor");
-    const searchSize = document.getElementById("searchSize");
+    const dressesRef = ref(db, "dresses");
+    const tableBody = document.getElementById("dressesTable");
 
-    let dresses = [];
+    const filterModel = document.getElementById("filterModel");
+    const filterColor = document.getElementById("filterColor");
+    const filterSize = document.getElementById("filterSize");
 
-    // Fetch from Firebase
-    onValue(ref(db, "dresses"), (snapshot) => {
-      const data = snapshot.val() || {};
-      dresses = Object.values(data);
-
-      renderTable();
-    });
-
-    function renderTable() {
-      const modelFilter = searchModel.value.toLowerCase();
-      const colorFilter = searchColor.value.toLowerCase();
-      const sizeFilter = searchSize.value.toLowerCase();
-
-      const filtered = dresses.filter(d =>
-        d.model.toLowerCase().includes(modelFilter) &&
-        d.color.toLowerCase().includes(colorFilter) &&
-        d.size.toLowerCase().includes(sizeFilter)
-      );
-
-      const grouped = {};
-      filtered.forEach(d => {
-        const key = `${d.model}-${d.color}-${d.size}`;
-        if (!grouped[key]) {
-          grouped[key] = { ...d, count: 0 };
+    function renderTable(snapshotVal) {
+      let data = {};
+      Object.entries(snapshotVal || {}).forEach(([barcode, item]) => {
+        const key = `${item.model}_${item.color}_${item.size}`;
+        if (!data[key]) {
+          data[key] = { ...item, count: 0 };
         }
-        grouped[key].count++;
+        data[key].count++;
       });
 
-      tableBody.innerHTML = "";
-      Object.values(grouped).forEach(item => {
-        const row = `<tr>
-          <td>${item.model}</td>
-          <td>${item.color}</td>
-          <td>${item.size}</td>
-          <td class="count">${item.count}</td>
-        </tr>`;
-        tableBody.innerHTML += row;
-      });
+      const modelFilter = filterModel.value.toLowerCase();
+      const colorFilter = filterColor.value.toLowerCase();
+      const sizeFilter = filterSize.value.toLowerCase();
+
+      const rows = Object.values(data)
+        .filter(d => 
+          d.model.toLowerCase().includes(modelFilter) &&
+          d.color.toLowerCase().includes(colorFilter) &&
+          d.size.toLowerCase().includes(sizeFilter)
+        )
+        .map(d => `
+          <tr>
+            <td>${d.model}</td>
+            <td>${d.color}</td>
+            <td>${d.size}</td>
+            <td>${d.count}</td>
+          </tr>
+        `).join("");
+
+      tableBody.innerHTML = rows || "<tr><td colspan='4'>No data found</td></tr>";
     }
 
-    searchModel.addEventListener("input", renderTable);
-    searchColor.addEventListener("input", renderTable);
-    searchSize.addEventListener("input", renderTable);
+    onValue(dressesRef, (snapshot) => {
+      renderTable(snapshot.val());
+    });
+
+    [filterModel, filterColor, filterSize].forEach(input => {
+      input.addEventListener("input", () => {
+        onValue(dressesRef, (snapshot) => {
+          renderTable(snapshot.val());
+        }, { onlyOnce: true });
+      });
+    });
   </script>
 </body>
 </html>
