@@ -4,54 +4,47 @@
   <meta charset="UTF-8">
   <title>Inventory Dresses</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .filters {
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    h2 { color: #333; text-align: center; }
+    .search-container {
       display: flex;
       justify-content: center;
-      gap: 10px;
+      gap: 15px;
       margin-bottom: 20px;
     }
-    .filters input {
-      padding: 6px;
-      width: 180px;
+    .search-container input {
+      padding: 8px;
+      width: 200px;
       border: 1px solid #ccc;
-      border-radius: 4px;
+      border-radius: 5px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
-      background: #fff;
+      margin-top: 15px;
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
+      border: 1px solid #ddd;
+      padding: 10px;
       text-align: center;
     }
-    th {
-      background: #eee;
-    }
+    th { background-color: #f2f2f2; }
+    tr:hover { background-color: #f1f1f1; }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>Available Dresses</h2>
+  <h2>Available Dresses (In Stock)</h2>
 
-  <!-- فلاتر البحث -->
-  <div class="filters">
-    <input type="text" id="filterModel" placeholder="Search Model...">
-    <input type="text" id="filterColor" placeholder="Search Color...">
-    <input type="text" id="filterSize" placeholder="Search Size...">
+  <!-- 3 صناديق بحث -->
+  <div class="search-container">
+    <input type="text" id="searchModel" placeholder="Search by Model">
+    <input type="text" id="searchColor" placeholder="Search by Color">
+    <input type="text" id="searchSize" placeholder="Search by Size">
   </div>
 
-  <!-- جدول عرض البيانات -->
   <table>
     <thead>
       <tr>
@@ -61,14 +54,13 @@
         <th>Count</th>
       </tr>
     </thead>
-    <tbody id="dressesTable"></tbody>
+    <tbody id="dressesTable">
+      <tr><td colspan="4">Loading...</td></tr>
+    </tbody>
   </table>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
-
+  <script>
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
@@ -80,62 +72,79 @@
       measurementId: "G-CTM21XYKLC"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    const dressesRef = ref(db, "dresses");
     const tableBody = document.getElementById("dressesTable");
+    const searchModel = document.getElementById("searchModel");
+    const searchColor = document.getElementById("searchColor");
+    const searchSize = document.getElementById("searchSize");
 
-    const filterModel = document.getElementById("filterModel");
-    const filterColor = document.getElementById("filterColor");
-    const filterSize = document.getElementById("filterSize");
+    let allDresses = [];
 
-    function renderTable(snapshotVal) {
-      let data = {};
-      Object.entries(snapshotVal || {}).forEach(([barcode, item]) => {
-        const key = `${item.model}_${item.color}_${item.size}`;
-        if (!data[key]) {
-          data[key] = { ...item, count: 0 };
+    function fetchDresses() {
+      db.ref("dresses").on("value", snapshot => {
+        const data = snapshot.val();
+        allDresses = [];
+        if (data) {
+          Object.values(data).forEach(dress => {
+            // يعرض فقط الفساتين الموجودة بالمخزون
+            if (dress.status === "in_stock") {
+              allDresses.push(dress);
+            }
+          });
         }
-        data[key].count++;
+        renderTable();
       });
-
-      const modelFilter = filterModel.value.toLowerCase();
-      const colorFilter = filterColor.value.toLowerCase();
-      const sizeFilter = filterSize.value.toLowerCase();
-
-      const rows = Object.values(data)
-        .filter(d => 
-          d.model.toLowerCase().includes(modelFilter) &&
-          d.color.toLowerCase().includes(colorFilter) &&
-          d.size.toLowerCase().includes(sizeFilter)
-        )
-        .map(d => `
-          <tr>
-            <td>${d.model}</td>
-            <td>${d.color}</td>
-            <td>${d.size}</td>
-            <td>${d.count}</td>
-          </tr>
-        `).join("");
-
-      tableBody.innerHTML = rows || "<tr><td colspan='4'>No data found</td></tr>";
     }
 
-    onValue(dressesRef, (snapshot) => {
-      renderTable(snapshot.val());
-    });
+    function renderTable() {
+      const modelFilter = searchModel.value.toLowerCase();
+      const colorFilter = searchColor.value.toLowerCase();
+      const sizeFilter = searchSize.value.toLowerCase();
 
-    [filterModel, filterColor, filterSize].forEach(input => {
-      input.addEventListener("input", () => {
-        onValue(dressesRef, (snapshot) => {
-          renderTable(snapshot.val());
-        }, { onlyOnce: true });
+      let filtered = allDresses.filter(dress =>
+        dress.model.toLowerCase().includes(modelFilter) &&
+        dress.color.toLowerCase().includes(colorFilter) &&
+        dress.size.toLowerCase().includes(sizeFilter)
+      );
+
+      // تجميع حسب (Model + Color + Size)
+      let grouped = {};
+      filtered.forEach(dress => {
+        const key = `${dress.model}_${dress.color}_${dress.size}`;
+        if (!grouped[key]) {
+          grouped[key] = { ...dress, count: 0 };
+        }
+        grouped[key].count++;
       });
-    });
+
+      // عرض النتيجة
+      tableBody.innerHTML = "";
+      if (Object.keys(grouped).length === 0) {
+        tableBody.innerHTML = "<tr><td colspan='4'>No dresses found</td></tr>";
+      } else {
+        Object.values(grouped).forEach(dress => {
+          const row = `
+            <tr>
+              <td>${dress.model}</td>
+              <td>${dress.color}</td>
+              <td>${dress.size}</td>
+              <td>${dress.count}</td>
+            </tr>
+          `;
+          tableBody.innerHTML += row;
+        });
+      }
+    }
+
+    // بحث تفاعلي
+    searchModel.addEventListener("input", renderTable);
+    searchColor.addEventListener("input", renderTable);
+    searchSize.addEventListener("input", renderTable);
+
+    fetchDresses();
   </script>
 </body>
 </html>
-
-
 
