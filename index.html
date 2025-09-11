@@ -83,7 +83,7 @@
     let allDresses = [];
 
     function fetchDresses() {
-      db.ref("dresses").on("value", snapshot => {
+      db.ref("/dresses").on("value", snapshot => {
         const data = snapshot.val();
         allDresses = [];
         if (data) {
@@ -147,4 +147,5 @@
   </script>
 </body>
 </html>
+
 
