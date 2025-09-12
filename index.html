@@ -20,6 +20,9 @@
     th { background-color: #f2f2f2; font-size: 11px; }
     tr:hover { background-color: #fafafa; }
     .status { margin: 6px auto; text-align: center; color: #666; font-size: 11px; }
+    .thumb {
+      width: 56px; height: 56px; object-fit: cover; border-radius: 4px; background: #eee;
+    }
   </style>
   <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -40,6 +43,7 @@
   <table>
     <thead>
       <tr>
+        <th>Image</th>
         <th>Model</th>
         <th>Color</th>
         <th>Size</th>
@@ -47,11 +51,12 @@
       </tr>
     </thead>
     <tbody id="dressesTable">
-      <tr><td colspan="4">Loading...</td></tr>
+      <tr><td colspan="5">Loading...</td></tr>
     </tbody>
   </table>
 
   <script>
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
@@ -80,13 +85,13 @@
       statusMsg.style.color = isError ? "#c0392b" : "#666";
     }
     function setLoading(msg = "Loading...") {
-      tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="5">${msg}</td></tr>`;
     }
     function startFetchTimeout() {
       clearTimeout(fetchTimer);
       fetchTimer = setTimeout(() => {
         if (!hasFirstSnapshot) {
-          setStatus("Connection is slow…", true);
+          setStatus("Connection is slow… check internet and Firebase rules.", true);
           setLoading("Still waiting for data…");
         }
       }, 12000);
@@ -94,6 +99,11 @@
     function escapeHtml(s) {
       s = (s ?? "").toString();
       return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    function safeUrl(u) {
+      u = (u ?? "").toString().trim();
+      // اعرض فقط روابط http/https
+      return /^https?:\/\//i.test(u) ? u : "";
     }
 
     function fetchDresses() {
@@ -113,7 +123,12 @@
             const d = data[key] || {};
             const status = (d.status ?? "").toString().toLowerCase();
             if (status === "in_stock") {
-              list.push({ model: (d.model ?? "").toString(), color: (d.color ?? "").toString(), size:  (d.size  ?? "").toString() });
+              list.push({
+                model: (d.model ?? "").toString(),
+                color: (d.color ?? "").toString(),
+                size:  (d.size  ?? "").toString(),
+                imageUrl: safeUrl(d.imageUrl) // <<<< نقرأ الصورة إن وُجدت
+              });
             }
           }
           allDresses = list;
@@ -122,7 +137,7 @@
         },
         error => {
           clearTimeout(fetchTimer);
-          setStatus(`Firebase error: ${error?.code || error?.message || error}`, true);
+          setStatus(`Firebase read error: ${error?.code || error?.message || error}`, true);
           setLoading("Failed to load data.");
         }
       );
@@ -139,11 +154,18 @@
         (d.size  || "").toLowerCase().includes(sizeF)
       );
 
+      // group by Model + Color + Size
       const grouped = {};
       for (const d of filtered) {
         const key = `${d.model}__${d.color}__${d.size}`;
-        if (!grouped[key]) grouped[key] = { ...d, count: 0 };
+        if (!grouped[key]) {
+          grouped[key] = { ...d, count: 0 };
+        }
         grouped[key].count++;
+        // لو في صورة، ثبّتها كصورة المجموعة (أول واحدة متاحة)
+        if (!grouped[key].imageUrl && d.imageUrl) {
+          grouped[key].imageUrl = d.imageUrl;
+        }
       }
 
       const groups = Object.values(grouped);
@@ -152,8 +174,15 @@
         return;
       }
 
+      const placeholder =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='100%25' height='100%25' fill='%23eeeeee'/%3E%3C/svg%3E";
+
       const rowsHtml = groups.map(d => `
         <tr>
+          <td>
+            <img class="thumb" src="${escapeHtml(d.imageUrl || placeholder)}"
+                 alt="thumb" onerror="this.src='${placeholder}'" />
+          </td>
           <td>${escapeHtml(d.model)}</td>
           <td>${escapeHtml(d.color)}</td>
           <td>${escapeHtml(d.size)}</td>
@@ -168,3 +197,5 @@
   </script>
 </body>
 </html>
+
+
