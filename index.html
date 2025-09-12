@@ -5,20 +5,21 @@
   <title>Available Dresses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h2 { color: #333; text-align: center; margin-top: 0; }
+    body { font-family: Arial, sans-serif; padding: 15px; background: #f9f9f9; font-size: 14px; }
+    h2 { color: #333; text-align: center; margin-top: 0; font-size: 20px; }
     .search-container {
-      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 16px;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 12px;
     }
     .search-container input {
-      padding: 8px; width: 200px; border: 1px solid #ccc; border-radius: 6px; outline: none;
+      padding: 6px; width: 120px; font-size: 13px;
+      border: 1px solid #ccc; border-radius: 5px; outline: none;
     }
     .search-container input:focus { border-color: #888; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { border: 1px solid #e5e5e5; padding: 10px; text-align: center; }
-    th { background-color: #f2f2f2; }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
+    th, td { border: 1px solid #e5e5e5; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; font-size: 13px; }
     tr:hover { background-color: #fafafa; }
-    .status { margin: 10px auto; text-align: center; color: #666; }
+    .status { margin: 8px auto; text-align: center; color: #666; font-size: 12px; }
   </style>
   <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -51,7 +52,7 @@
   </table>
 
   <script>
-    // ========== 1) Firebase Config ==========
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
@@ -62,18 +63,15 @@
       appId: "1:697364304883:web:e559c3e444497e3b533886",
       measurementId: "G-CTM21XYKLC"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ========== 2) DOM refs ==========
     const tableBody   = document.getElementById("dressesTable");
     const searchModel = document.getElementById("searchModel");
     const searchColor = document.getElementById("searchColor");
     const searchSize  = document.getElementById("searchSize");
     const statusMsg   = document.getElementById("statusMsg");
 
-    // ========== 3) State ==========
     let allDresses = [];
     let fetchTimer = null;
     let hasFirstSnapshot = false;
@@ -82,30 +80,23 @@
       statusMsg.textContent = text || "";
       statusMsg.style.color = isError ? "#c0392b" : "#666";
     }
-
     function setLoading(msg = "Loading...") {
       tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
     }
-
     function startFetchTimeout() {
       clearTimeout(fetchTimer);
       fetchTimer = setTimeout(() => {
         if (!hasFirstSnapshot) {
-          setStatus("Connection is slow… check internet and Firebase read rules.", true);
+          setStatus("Connection is slow… check internet and Firebase rules.", true);
           setLoading("Still waiting for data…");
         }
-      }, 12000); // 12s
+      }, 12000);
     }
-
-    // Escape text
     function escapeHtml(s) {
       s = (s ?? "").toString();
-      return s.replace(/[&<>"']/g, m => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[m]));
+      return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
 
-    // ========== 4) Fetch from /dresses ==========
     function fetchDresses() {
       setLoading();
       setStatus("Fetching data…");
@@ -119,20 +110,13 @@
           hasFirstSnapshot = true;
           const data = snapshot.val() || {};
           const list = [];
-
-          // dresses/{barcode} => { model, color, size, status, ... }
           for (const key in data) {
             const d = data[key] || {};
             const status = (d.status ?? "").toString().toLowerCase();
             if (status === "in_stock") {
-              list.push({
-                model: (d.model ?? "").toString(),
-                color: (d.color ?? "").toString(),
-                size:  (d.size  ?? "").toString()
-              });
+              list.push({ model: (d.model ?? "").toString(), color: (d.color ?? "").toString(), size:  (d.size  ?? "").toString() });
             }
           }
-
           allDresses = list;
           setStatus(list.length ? "Updated." : "No 'in_stock' items currently.");
           renderTable();
@@ -145,7 +129,6 @@
       );
     }
 
-    // ========== 5) Render ==========
     function renderTable() {
       const modelF = (searchModel.value || "").toLowerCase();
       const colorF = (searchColor.value || "").toLowerCase();
@@ -157,7 +140,6 @@
         (d.size  || "").toLowerCase().includes(sizeF)
       );
 
-      // group by Model + Color + Size
       const grouped = {};
       for (const d of filtered) {
         const key = `${d.model}__${d.color}__${d.size}`;
@@ -179,16 +161,10 @@
           <td>${d.count}</td>
         </tr>
       `).join("");
-
       tableBody.innerHTML = rowsHtml;
     }
 
-    // ========== 6) Interactive search ==========
-    [searchModel, searchColor, searchSize].forEach(inp => {
-      inp.addEventListener("input", renderTable);
-    });
-
-    // start
+    [searchModel, searchColor, searchSize].forEach(inp => inp.addEventListener("input", renderTable));
     fetchDresses();
   </script>
 </body>
