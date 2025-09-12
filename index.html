@@ -36,9 +36,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>Available Dresses (In Stock)</h2>
+  <h2>Available Dresses</h2>
 
-  <!-- 3 صناديق بحث -->
+  <!-- صناديق البحث -->
   <div class="search-container">
     <input type="text" id="searchModel" placeholder="Search by Model">
     <input type="text" id="searchColor" placeholder="Search by Color">
@@ -88,7 +88,6 @@
         allDresses = [];
         if (data) {
           Object.values(data).forEach(dress => {
-            // يعرض فقط الفساتين الموجودة بالمخزون
             if (dress.status === "in_stock") {
               allDresses.push(dress);
             }
@@ -109,7 +108,7 @@
         dress.size.toLowerCase().includes(sizeFilter)
       );
 
-      // تجميع حسب (Model + Color + Size)
+      // تجميع حسب Model + Color + Size
       let grouped = {};
       filtered.forEach(dress => {
         const key = `${dress.model}_${dress.color}_${dress.size}`;
@@ -119,7 +118,7 @@
         grouped[key].count++;
       });
 
-      // عرض النتيجة
+      // عرض النتائج
       tableBody.innerHTML = "";
       if (Object.keys(grouped).length === 0) {
         tableBody.innerHTML = "<tr><td colspan='4'>No dresses found</td></tr>";
@@ -147,6 +146,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
