@@ -1,49 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Inventory Dresses</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h2 { color: #333; text-align: center; }
+    h2 { color: #333; text-align: center; margin-top: 0; }
     .search-container {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-bottom: 20px;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 16px;
     }
     .search-container input {
-      padding: 8px;
-      width: 200px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      padding: 8px; width: 200px; border: 1px solid #ccc; border-radius: 6px; outline: none;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: center;
-    }
+    .search-container input:focus { border-color: #888; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #e5e5e5; padding: 10px; text-align: center; }
     th { background-color: #f2f2f2; }
-    tr:hover { background-color: #f1f1f1; }
+    tr:hover { background-color: #fafafa; }
+    .status { margin: 10px auto; text-align: center; color: #666; }
   </style>
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>Available Dresses</h2>
+  <h2>الفساتين المتوفرة في المخزن</h2>
 
   <!-- صناديق البحث -->
   <div class="search-container">
-    <input type="text" id="searchModel" placeholder="Search by Model">
-    <input type="text" id="searchColor" placeholder="Search by Color">
-    <input type="text" id="searchSize" placeholder="Search by Size">
+    <input type="text" id="searchModel" placeholder="ابحث بالـ Model" />
+    <input type="text" id="searchColor" placeholder="ابحث باللون" />
+    <input type="text" id="searchSize" placeholder="ابحث بالمقاس" />
   </div>
+
+  <div class="status" id="statusMsg"></div>
 
   <table>
     <thead>
@@ -60,7 +51,7 @@
   </table>
 
   <script>
-    // Firebase Config
+    // ========== 1) Firebase Config ==========
     const firebaseConfig = {
       apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
       authDomain: "show-inventory.firebaseapp.com",
@@ -75,77 +66,134 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const tableBody = document.getElementById("dressesTable");
+    // ========== 2) DOM refs ==========
+    const tableBody   = document.getElementById("dressesTable");
     const searchModel = document.getElementById("searchModel");
     const searchColor = document.getElementById("searchColor");
-    const searchSize = document.getElementById("searchSize");
+    const searchSize  = document.getElementById("searchSize");
+    const statusMsg   = document.getElementById("statusMsg");
 
+    // ========== 3) State ==========
     let allDresses = [];
+    let fetchTimer = null;
+    let hasFirstSnapshot = false;
 
-    function fetchDresses() {
-      db.ref("dresses").on("value", snapshot => {
-        const data = snapshot.val();
-        allDresses = [];
-        if (data) {
-          Object.values(data).forEach(dress => {
-            if (dress.status === "in_stock") {
-              allDresses.push(dress);
-            }
-          });
-        }
-        renderTable();
-      });
+    function setStatus(text = "", isError = false) {
+      statusMsg.textContent = text || "";
+      statusMsg.style.color = isError ? "#c0392b" : "#666";
     }
 
-    function renderTable() {
-      const modelFilter = searchModel.value.toLowerCase();
-      const colorFilter = searchColor.value.toLowerCase();
-      const sizeFilter = searchSize.value.toLowerCase();
+    function setLoading(msg = "Loading...") {
+      tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
+    }
 
-      let filtered = allDresses.filter(dress =>
-        dress.model.toLowerCase().includes(modelFilter) &&
-        dress.color.toLowerCase().includes(colorFilter) &&
-        dress.size.toLowerCase().includes(sizeFilter)
+    function startFetchTimeout() {
+      clearTimeout(fetchTimer);
+      fetchTimer = setTimeout(() => {
+        if (!hasFirstSnapshot) {
+          setStatus("تأخر الاتصال… تأكد من الإنترنت وقواعد القراءة في Firebase (Permissions).", true);
+          setLoading("لم يتم جلب البيانات بعد…");
+        }
+      }, 12000); // 12 ثانية
+    }
+
+    // حماية بسيطة للنصوص (XSS)
+    function escapeHtml(s) {
+      s = (s ?? "").toString();
+      return s.replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
+
+    // ========== 4) Fetch from /dresses ==========
+    function fetchDresses() {
+      setLoading();
+      setStatus("جاري جلب البيانات…");
+      hasFirstSnapshot = false;
+      startFetchTimeout();
+
+      const ref = db.ref("/dresses");
+      ref.on("value",
+        snapshot => {
+          clearTimeout(fetchTimer);
+          hasFirstSnapshot = true;
+          const data = snapshot.val() || {};
+          const list = [];
+
+          // نتوقع: dresses/{barcode} => { model, color, size, status, ... }
+          for (const key in data) {
+            const d = data[key] || {};
+            const status = (d.status ?? "").toString().toLowerCase();
+            if (status === "in_stock") {
+              list.push({
+                model: (d.model ?? "").toString(),
+                color: (d.color ?? "").toString(),
+                size:  (d.size  ?? "").toString()
+              });
+            }
+          }
+
+          allDresses = list;
+          setStatus(list.length ? "تم التحديث." : "لا توجد عناصر 'in_stock' حالياً.");
+          renderTable();
+        },
+        error => {
+          clearTimeout(fetchTimer);
+          setStatus(`خطأ في القراءة من Firebase: ${error?.code || error?.message || error}`, true);
+          setLoading("تعذر تحميل البيانات.");
+        }
+      );
+    }
+
+    // ========== 5) Render ==========
+    function renderTable() {
+      const modelF = (searchModel.value || "").toLowerCase();
+      const colorF = (searchColor.value || "").toLowerCase();
+      const sizeF  = (searchSize.value  || "").toLowerCase();
+
+      const filtered = allDresses.filter(d =>
+        (d.model || "").toLowerCase().includes(modelF) &&
+        (d.color || "").toLowerCase().includes(colorF) &&
+        (d.size  || "").toLowerCase().includes(sizeF)
       );
 
-      // تجميع حسب Model + Color + Size
-      let grouped = {};
-      filtered.forEach(dress => {
-        const key = `${dress.model}_${dress.color}_${dress.size}`;
-        if (!grouped[key]) {
-          grouped[key] = { ...dress, count: 0 };
-        }
+      // تجميع حسب (Model + Color + Size)
+      const grouped = {};
+      for (const d of filtered) {
+        const key = `${d.model}__${d.color}__${d.size}`;
+        if (!grouped[key]) grouped[key] = { ...d, count: 0 };
         grouped[key].count++;
-      });
-
-      // عرض النتائج
-      tableBody.innerHTML = "";
-      if (Object.keys(grouped).length === 0) {
-        tableBody.innerHTML = "<tr><td colspan='4'>No dresses found</td></tr>";
-      } else {
-        Object.values(grouped).forEach(dress => {
-          const row = `
-            <tr>
-              <td>${dress.model}</td>
-              <td>${dress.color}</td>
-              <td>${dress.size}</td>
-              <td>${dress.count}</td>
-            </tr>
-          `;
-          tableBody.innerHTML += row;
-        });
       }
+
+      const groups = Object.values(grouped);
+      if (groups.length === 0) {
+        setLoading("لا توجد فساتين مطابقة لفلتر البحث.");
+        return;
+      }
+
+      const rowsHtml = groups.map(d => `
+        <tr>
+          <td>${escapeHtml(d.model)}</td>
+          <td>${escapeHtml(d.color)}</td>
+          <td>${escapeHtml(d.size)}</td>
+          <td>${d.count}</td>
+        </tr>
+      `).join("");
+
+      tableBody.innerHTML = rowsHtml;
     }
 
-    // بحث تفاعلي
-    searchModel.addEventListener("input", renderTable);
-    searchColor.addEventListener("input", renderTable);
-    searchSize.addEventListener("input", renderTable);
+    // ========== 6) Interactive search ==========
+    [searchModel, searchColor, searchSize].forEach(inp => {
+      inp.addEventListener("input", renderTable);
+    });
 
+    // ابدأ الجلب
     fetchDresses();
   </script>
 </body>
 </html>
+
 
 
 
