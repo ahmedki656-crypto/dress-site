@@ -80,7 +80,7 @@
       statusMsg.style.color = isError ? "#c0392b" : "#666";
     }
     function setLoading(msg = "Loading...") {
-      tableBody.innerHTML = <tr><td colspan="4">${msg}</td></tr>;
+      tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
     }
     function startFetchTimeout() {
       clearTimeout(fetchTimer);
@@ -122,7 +122,7 @@
         },
         error => {
           clearTimeout(fetchTimer);
-          setStatus(Firebase error: ${error?.code || error?.message || error}, true);
+          setStatus(`Firebase error: ${error?.code || error?.message || error}`, true);
           setLoading("Failed to load data.");
         }
       );
@@ -141,7 +141,7 @@
 
       const grouped = {};
       for (const d of filtered) {
-        const key = ${d.model}__${d.color}__${d.size};
+        const key = `${d.model}__${d.color}__${d.size}`;
         if (!grouped[key]) grouped[key] = { ...d, count: 0 };
         grouped[key].count++;
       }
