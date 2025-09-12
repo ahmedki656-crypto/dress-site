@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
-  <title>Inventory Dresses</title>
+  <title>Available Dresses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
@@ -25,13 +25,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>الفساتين المتوفرة في المخزن</h2>
+  <h2>Available Dresses</h2>
 
-  <!-- صناديق البحث -->
+  <!-- Search boxes side-by-side -->
   <div class="search-container">
-    <input type="text" id="searchModel" placeholder="ابحث بالـ Model" />
-    <input type="text" id="searchColor" placeholder="ابحث باللون" />
-    <input type="text" id="searchSize" placeholder="ابحث بالمقاس" />
+    <input type="text" id="searchModel" placeholder="Search by Model" />
+    <input type="text" id="searchColor" placeholder="Search by Color" />
+    <input type="text" id="searchSize"  placeholder="Search by Size" />
   </div>
 
   <div class="status" id="statusMsg"></div>
@@ -91,13 +91,13 @@
       clearTimeout(fetchTimer);
       fetchTimer = setTimeout(() => {
         if (!hasFirstSnapshot) {
-          setStatus("تأخر الاتصال… تأكد من الإنترنت وقواعد القراءة في Firebase (Permissions).", true);
-          setLoading("لم يتم جلب البيانات بعد…");
+          setStatus("Connection is slow… check internet and Firebase read rules.", true);
+          setLoading("Still waiting for data…");
         }
-      }, 12000); // 12 ثانية
+      }, 12000); // 12s
     }
 
-    // حماية بسيطة للنصوص (XSS)
+    // Escape text
     function escapeHtml(s) {
       s = (s ?? "").toString();
       return s.replace(/[&<>"']/g, m => ({
@@ -108,7 +108,7 @@
     // ========== 4) Fetch from /dresses ==========
     function fetchDresses() {
       setLoading();
-      setStatus("جاري جلب البيانات…");
+      setStatus("Fetching data…");
       hasFirstSnapshot = false;
       startFetchTimeout();
 
@@ -120,7 +120,7 @@
           const data = snapshot.val() || {};
           const list = [];
 
-          // نتوقع: dresses/{barcode} => { model, color, size, status, ... }
+          // dresses/{barcode} => { model, color, size, status, ... }
           for (const key in data) {
             const d = data[key] || {};
             const status = (d.status ?? "").toString().toLowerCase();
@@ -134,13 +134,13 @@
           }
 
           allDresses = list;
-          setStatus(list.length ? "تم التحديث." : "لا توجد عناصر 'in_stock' حالياً.");
+          setStatus(list.length ? "Updated." : "No 'in_stock' items currently.");
           renderTable();
         },
         error => {
           clearTimeout(fetchTimer);
-          setStatus(`خطأ في القراءة من Firebase: ${error?.code || error?.message || error}`, true);
-          setLoading("تعذر تحميل البيانات.");
+          setStatus(`Firebase read error: ${error?.code || error?.message || error}`, true);
+          setLoading("Failed to load data.");
         }
       );
     }
@@ -157,7 +157,7 @@
         (d.size  || "").toLowerCase().includes(sizeF)
       );
 
-      // تجميع حسب (Model + Color + Size)
+      // group by Model + Color + Size
       const grouped = {};
       for (const d of filtered) {
         const key = `${d.model}__${d.color}__${d.size}`;
@@ -167,7 +167,7 @@
 
       const groups = Object.values(grouped);
       if (groups.length === 0) {
-        setLoading("لا توجد فساتين مطابقة لفلتر البحث.");
+        setLoading("No matching dresses.");
         return;
       }
 
@@ -188,11 +188,12 @@
       inp.addEventListener("input", renderTable);
     });
 
-    // ابدأ الجلب
+    // start
     fetchDresses();
   </script>
 </body>
 </html>
+
 
 
 
