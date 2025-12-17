@@ -70,24 +70,22 @@ const db = firebase.database();
 
 /* ================= ثوابت ================= */
 
-// موديلات مزدوجة (نشتغل فيها عالوزن)
+// موديلات مزدوجة
 const doubleModels = ["simple","back less","sewar","koko","hand"];
 
-// تحويل المقاس → وزن
-const sizeToWeight = {
-  2:"44–50",
-  3:"51–57",
-  4:"58–63",
-  5:"64–70",
-  6:"71–76",
-  7:"77–82",
-  8:"83–90",
-  9:"91–110"
+// قاعدة الموديلات المزدوجة (1–5)
+const doubleSizeRule = {
+  1: "لحد 50",
+  2: "40–42",
+  3: "44–46",
+  4: "48–50",
+  5: "52 وفوق"
 };
 
-// تحويل المقاس → أوروبي
+// المقاسات العادية → أوروبي
 const sizeToEuro = {
-  2:38, 3:40, 4:42, 5:44, 6:46, 7:48, 8:50, 9:52
+  2:38, 3:40, 4:42, 5:44,
+  6:46, 7:48, 8:50, 9:52
 };
 
 // الألوان
@@ -178,19 +176,21 @@ function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return alert("اعمل بحث عن موديل واحد");
 
-  const modelName=rows[0].children[0].innerText.toLowerCase();
+  const modelNameRaw=rows[0].children[0].innerText;
+  const modelName=modelNameRaw.toLowerCase();
   const isDouble = doubleModels.includes(modelName);
 
-  let out=`==== ${modelName} ====\n\n`;
+  let out=`==== ${modelNameRaw} ====\n\n`;
   const byColor={};
 
   rows.forEach(r=>{
     const colorEn=r.children[1].innerText.toLowerCase().trim();
     const size=r.children[2].innerText;
     const count=Number(r.children[3].innerText);
+    if(!count) return;
 
     const colorAr=colorMap[colorEn]||colorEn;
-    const key=isDouble ? sizeToWeight[size] : sizeToEuro[size];
+    const key = isDouble ? doubleSizeRule[size] : sizeToEuro[size];
     if(!key) return;
 
     if(!byColor[colorAr]) byColor[colorAr]={};
@@ -202,7 +202,7 @@ function generateInventory(){
     out+=`${color}:\n`;
     Object.keys(byColor[color]).forEach(k=>{
       out+= isDouble
-        ? `وزن ${k} عدد ${byColor[color][k]}\n`
+        ? `${k} عدد ${byColor[color][k]}\n`
         : `${k} عدد ${byColor[color][k]}\n`;
     });
     out+="\n";
