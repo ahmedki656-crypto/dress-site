@@ -55,7 +55,7 @@
 </table>
 
 <script>
-/* ================= Firebase ================= */
+/* ================= Firebase (كودك الأصلي) ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
   authDomain: "show-inventory.firebaseapp.com",
@@ -69,20 +69,11 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ================= Maps ================= */
-
-// تحويل المقاس الداخلي → أوروبي
 const sizeNumToEuro = {
-  2: 38,
-  3: 40,
-  4: 42,
-  5: 44,
-  6: 46,
-  7: 48,
-  8: 50,
-  9: 52
+  2: 38, 3: 40, 4: 42, 5: 44,
+  6: 46, 7: 48, 8: 50, 9: 52
 };
 
-// ألوان عربي
 const colorMap = {
   black: "أسود",
   white: "أبيض",
@@ -120,38 +111,44 @@ const statusMsg   = document.getElementById("statusMsg");
 let allDresses = [];
 
 /* ================= Helpers ================= */
-function setStatus(t=""){ statusMsg.textContent=t; }
-function setLoading(t="Loading..."){
-  tableBody.innerHTML = `<tr><td colspan="4">${t}</td></tr>`;
+function setLoading(msg="Loading..."){
+  tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
 }
+function setStatus(msg=""){ statusMsg.textContent = msg; }
 function escapeHtml(s){
   return (s??"").replace(/[&<>"']/g,m=>(
     {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
   ));
 }
 
-/* ================= Fetch ================= */
+/* ================= Fetch (كما هو – مستقر) ================= */
 function fetchDresses() {
   setLoading();
   setStatus("Fetching data…");
 
-  db.ref("/dresses").on("value", snap => {
-    const data = snap.val() || {};
-    allDresses = [];
+  const ref = db.ref("/dresses");
+  ref.on("value", snapshot => {
+    const data = snapshot.val() || {};
+    const list = [];
 
-    for (const k in data) {
-      const d = data[k];
-      if ((d.status||"").toLowerCase()==="in_stock") {
-        allDresses.push({
-          model:d.model,
-          color:d.color,
-          size:d.size
+    for (const key in data) {
+      const d = data[key] || {};
+      if ((d.status || "").toLowerCase() === "in_stock") {
+        list.push({
+          model: d.model || "",
+          color: d.color || "",
+          size:  d.size  || ""
         });
       }
     }
 
-    setStatus(allDresses.length ? "Updated." : "No data");
+    allDresses = list;
+    setStatus(list.length ? "Updated." : "No data.");
     renderTable();
+  }, err => {
+    console.error(err);
+    setStatus("Firebase error");
+    setLoading("Failed to load data");
   });
 }
 
@@ -171,7 +168,7 @@ function renderTable() {
     )
     .forEach(d => {
       const k = `${d.model}__${d.color}__${d.size}`;
-      if (!grouped[k]) grouped[k] = {...d, count:0};
+      if (!grouped[k]) grouped[k] = { ...d, count: 0 };
       grouped[k].count++;
     });
 
@@ -182,12 +179,14 @@ function renderTable() {
   }
 
   rows.sort((a,b)=>{
-    if (a.model.toLowerCase()<b.model.toLowerCase()) return -1;
-    if (a.model.toLowerCase()>b.model.toLowerCase()) return 1;
-    return parseInt(a.size)-parseInt(b.size);
+    const mA = a.model.toLowerCase();
+    const mB = b.model.toLowerCase();
+    if (mA < mB) return -1;
+    if (mA > mB) return 1;
+    return parseInt(a.size) - parseInt(b.size);
   });
 
-  tableBody.innerHTML = rows.map(d=>`
+  tableBody.innerHTML = rows.map(d => `
     <tr>
       <td>${escapeHtml(d.model)}</td>
       <td>${escapeHtml(d.color)}</td>
@@ -197,7 +196,7 @@ function renderTable() {
   `).join("");
 }
 
-/* ================= Inventory (الجرد الصح) ================= */
+/* ================= Inventory (مضبوط + آمن) ================= */
 function generateInventory() {
   const rows = [...tableBody.querySelectorAll("tr")];
   if (!rows.length || rows[0].children.length < 4) {
@@ -210,15 +209,17 @@ function generateInventory() {
 
   const byColor = {};
 
-  rows.forEach(r=>{
+  rows.forEach(r => {
     const colorEn = r.children[1].innerText
       .toLowerCase().replace(/\s+/g," ").trim();
 
     const sizeNum = r.children[2].innerText;
     const count   = Number(r.children[3].innerText);
 
+    const euro = sizeNumToEuro[sizeNum];
+    if (!euro || !count) return;   // حماية تامة
+
     const colorAr = colorMap[colorEn] || colorEn;
-    const euro    = sizeNumToEuro[sizeNum];
 
     if (!byColor[colorAr]) byColor[colorAr] = {};
     if (!byColor[colorAr][euro]) byColor[colorAr][euro] = 0;
@@ -226,11 +227,11 @@ function generateInventory() {
     byColor[colorAr][euro] += count;
   });
 
-  Object.keys(byColor).forEach(color=>{
+  Object.keys(byColor).forEach(color => {
     output += `${color}:\n`;
     Object.keys(byColor[color])
       .sort((a,b)=>a-b)
-      .forEach(size=>{
+      .forEach(size => {
         output += `${size} عدد ${byColor[color][size]}\n`;
       });
     output += "\n";
@@ -249,4 +250,3 @@ fetchDresses();
 
 </body>
 </html>
-
