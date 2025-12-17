@@ -73,13 +73,13 @@ const db = firebase.database();
 // موديلات مزدوجة
 const doubleModels = ["simple","back less","sewar","koko","hand"];
 
-// قاعدة الموديلات المزدوجة (1–5)
+// قواعد الموديلات المزدوجة (نهائية)
 const doubleSizeRule = {
-  1: "لحد 50",
-  2: "40–42",
-  3: "44–46",
-  4: "48–50",
-  5: "52 وفوق"
+  1: "وزن 44–50",
+  2: "وزن 51–63",
+  3: "وزن 64–76",
+  4: "وزن 77–90",
+  5: "وزن 96–115"
 };
 
 // المقاسات العادية → أوروبي
@@ -88,7 +88,7 @@ const sizeToEuro = {
   6:46, 7:48, 8:50, 9:52
 };
 
-// الألوان
+// الألوان بالعربي
 const colorMap = {
   black:"أسود", white:"أبيض", red:"أحمر", pink:"زهري",
   blue:"أزرق", "baby blue":"أزرق", "dark blue":"كحلي", "royale blue":"أزرق نيلي",
@@ -108,8 +108,10 @@ const statusMsg   = document.getElementById("statusMsg");
 let allDresses = [];
 
 /* ================= Helpers ================= */
-function setLoading(msg="Loading..."){ tableBody.innerHTML=`<tr><td colspan="4">${msg}</td></tr>`; }
-function setStatus(msg=""){ statusMsg.textContent=msg; }
+function setLoading(msg="Loading..."){
+  tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
+}
+function setStatus(msg=""){ statusMsg.textContent = msg; }
 
 /* ================= Fetch ================= */
 function fetchDresses(){
@@ -135,7 +137,7 @@ function fetchDresses(){
   });
 }
 
-/* ================= Render ================= */
+/* ================= Render Table ================= */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
@@ -201,9 +203,7 @@ function generateInventory(){
   Object.keys(byColor).forEach(color=>{
     out+=`${color}:\n`;
     Object.keys(byColor[color]).forEach(k=>{
-      out+= isDouble
-        ? `${k} عدد ${byColor[color][k]}\n`
-        : `${k} عدد ${byColor[color][k]}\n`;
+      out+=`${k} عدد ${byColor[color][k]}\n`;
     });
     out+="\n";
   });
@@ -213,7 +213,9 @@ function generateInventory(){
 }
 
 /* ================= Init ================= */
-[searchModel,searchColor,searchSize].forEach(i=>i.addEventListener("input",renderTable));
+[searchModel,searchColor,searchSize]
+  .forEach(i=>i.addEventListener("input",renderTable));
+
 fetchDresses();
 </script>
 
