@@ -55,7 +55,7 @@
 </table>
 
 <script>
-/* ================= Firebase (كودك الأصلي) ================= */
+/* ================= Firebase ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
   authDomain: "show-inventory.firebaseapp.com",
@@ -68,41 +68,40 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ================= Maps ================= */
-const sizeNumToEuro = {
-  2: 38, 3: 40, 4: 42, 5: 44,
-  6: 46, 7: 48, 8: 50, 9: 52
+/* ================= ثوابت ================= */
+
+// موديلات مزدوجة (نشتغل فيها عالوزن)
+const doubleModels = ["simple","back less","sewar","koko","hand"];
+
+// تحويل المقاس → وزن
+const sizeToWeight = {
+  2:"44–50",
+  3:"51–57",
+  4:"58–63",
+  5:"64–70",
+  6:"71–76",
+  7:"77–82",
+  8:"83–90",
+  9:"91–110"
 };
 
+// تحويل المقاس → أوروبي
+const sizeToEuro = {
+  2:38, 3:40, 4:42, 5:44, 6:46, 7:48, 8:50, 9:52
+};
+
+// الألوان
 const colorMap = {
-  black: "أسود",
-  white: "أبيض",
-  red: "أحمر",
-  pink: "زهري",
-
-  blue: "أزرق",
-  "baby blue": "أزرق",
-  "dark blue": "كحلي",
-  "royale blue": "أزرق نيلي",
-
-  green: "أخضر",
-  purple: "بنفسجي",
-  yellow: "أصفر",
-  beige: "بيج",
-  brown: "بني",
-
-  grey: "رمادي",
-  smok: "رمادي",
-  burghandi: "خمري",
-
-  "black & white": "أبيض وأسود",
-  "white & black": "أبيض وأسود",
-  "black&white": "أبيض وأسود",
-  "white&black": "أبيض وأسود"
+  black:"أسود", white:"أبيض", red:"أحمر", pink:"زهري",
+  blue:"أزرق", "baby blue":"أزرق", "dark blue":"كحلي", "royale blue":"أزرق نيلي",
+  green:"أخضر", purple:"بنفسجي", yellow:"أصفر",
+  beige:"بيج", brown:"بني", grey:"رمادي", smok:"رمادي", burghandi:"خمري",
+  "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
+  "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
 };
 
 /* ================= Elements ================= */
-const tableBody   = document.getElementById("dressesTable");
+const tableBody = document.getElementById("dressesTable");
 const searchModel = document.getElementById("searchModel");
 const searchColor = document.getElementById("searchColor");
 const searchSize  = document.getElementById("searchSize");
@@ -111,140 +110,110 @@ const statusMsg   = document.getElementById("statusMsg");
 let allDresses = [];
 
 /* ================= Helpers ================= */
-function setLoading(msg="Loading..."){
-  tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
-}
-function setStatus(msg=""){ statusMsg.textContent = msg; }
-function escapeHtml(s){
-  return (s??"").replace(/[&<>"']/g,m=>(
-    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
-  ));
-}
+function setLoading(msg="Loading..."){ tableBody.innerHTML=`<tr><td colspan="4">${msg}</td></tr>`; }
+function setStatus(msg=""){ statusMsg.textContent=msg; }
 
-/* ================= Fetch (كما هو – مستقر) ================= */
-function fetchDresses() {
+/* ================= Fetch ================= */
+function fetchDresses(){
   setLoading();
   setStatus("Fetching data…");
 
-  const ref = db.ref("/dresses");
-  ref.on("value", snapshot => {
-    const data = snapshot.val() || {};
-    const list = [];
+  db.ref("/dresses").on("value", snap=>{
+    const data = snap.val() || {};
+    allDresses = [];
 
-    for (const key in data) {
-      const d = data[key] || {};
-      if ((d.status || "").toLowerCase() === "in_stock") {
-        list.push({
-          model: d.model || "",
-          color: d.color || "",
-          size:  d.size  || ""
+    for(const k in data){
+      const d = data[k];
+      if((d.status||"").toLowerCase()==="in_stock"){
+        allDresses.push({
+          model:d.model||"",
+          color:d.color||"",
+          size:d.size||""
         });
       }
     }
-
-    allDresses = list;
-    setStatus(list.length ? "Updated." : "No data.");
+    setStatus("Updated.");
     renderTable();
-  }, err => {
-    console.error(err);
-    setStatus("Firebase error");
-    setLoading("Failed to load data");
   });
 }
 
-/* ================= Render Table ================= */
-function renderTable() {
-  const mf = searchModel.value.toLowerCase();
-  const cf = searchColor.value.toLowerCase();
-  const sf = searchSize.value.toLowerCase();
+/* ================= Render ================= */
+function renderTable(){
+  const mf=searchModel.value.toLowerCase();
+  const cf=searchColor.value.toLowerCase();
+  const sf=searchSize.value.toLowerCase();
 
-  const grouped = {};
+  const grouped={};
 
   allDresses
-    .filter(d =>
-      d.model.toLowerCase().includes(mf) &&
-      d.color.toLowerCase().includes(cf) &&
-      d.size.toLowerCase().includes(sf)
-    )
-    .forEach(d => {
-      const k = `${d.model}__${d.color}__${d.size}`;
-      if (!grouped[k]) grouped[k] = { ...d, count: 0 };
+    .filter(d=>d.model.toLowerCase().includes(mf)
+      && d.color.toLowerCase().includes(cf)
+      && d.size.toLowerCase().includes(sf))
+    .forEach(d=>{
+      const k=`${d.model}__${d.color}__${d.size}`;
+      if(!grouped[k]) grouped[k]={...d,count:0};
       grouped[k].count++;
     });
 
-  const rows = Object.values(grouped);
-  if (!rows.length) {
-    setLoading("No matching dresses.");
-    return;
-  }
+  const rows=Object.values(grouped);
+  if(!rows.length){ setLoading("No results"); return; }
 
   rows.sort((a,b)=>{
-    const mA = a.model.toLowerCase();
-    const mB = b.model.toLowerCase();
-    if (mA < mB) return -1;
-    if (mA > mB) return 1;
-    return parseInt(a.size) - parseInt(b.size);
+    if(a.model.toLowerCase()<b.model.toLowerCase()) return -1;
+    if(a.model.toLowerCase()>b.model.toLowerCase()) return 1;
+    return parseInt(a.size)-parseInt(b.size);
   });
 
-  tableBody.innerHTML = rows.map(d => `
+  tableBody.innerHTML = rows.map(d=>`
     <tr>
-      <td>${escapeHtml(d.model)}</td>
-      <td>${escapeHtml(d.color)}</td>
-      <td>${escapeHtml(d.size)}</td>
+      <td>${d.model}</td>
+      <td>${d.color}</td>
+      <td>${d.size}</td>
       <td>${d.count}</td>
-    </tr>
-  `).join("");
+    </tr>`).join("");
 }
 
-/* ================= Inventory (مضبوط + آمن) ================= */
-function generateInventory() {
-  const rows = [...tableBody.querySelectorAll("tr")];
-  if (!rows.length || rows[0].children.length < 4) {
-    alert("اعمل بحث عن موديل واحد");
-    return;
-  }
+/* ================= الجرد النهائي ================= */
+function generateInventory(){
+  const rows=[...tableBody.querySelectorAll("tr")];
+  if(!rows.length) return alert("اعمل بحث عن موديل واحد");
 
-  const modelName = rows[0].children[0].innerText;
-  let output = `==== ${modelName} ====\n\n`;
+  const modelName=rows[0].children[0].innerText.toLowerCase();
+  const isDouble = doubleModels.includes(modelName);
 
-  const byColor = {};
+  let out=`==== ${modelName} ====\n\n`;
+  const byColor={};
 
-  rows.forEach(r => {
-    const colorEn = r.children[1].innerText
-      .toLowerCase().replace(/\s+/g," ").trim();
+  rows.forEach(r=>{
+    const colorEn=r.children[1].innerText.toLowerCase().trim();
+    const size=r.children[2].innerText;
+    const count=Number(r.children[3].innerText);
 
-    const sizeNum = r.children[2].innerText;
-    const count   = Number(r.children[3].innerText);
+    const colorAr=colorMap[colorEn]||colorEn;
+    const key=isDouble ? sizeToWeight[size] : sizeToEuro[size];
+    if(!key) return;
 
-    const euro = sizeNumToEuro[sizeNum];
-    if (!euro || !count) return;   // حماية تامة
-
-    const colorAr = colorMap[colorEn] || colorEn;
-
-    if (!byColor[colorAr]) byColor[colorAr] = {};
-    if (!byColor[colorAr][euro]) byColor[colorAr][euro] = 0;
-
-    byColor[colorAr][euro] += count;
+    if(!byColor[colorAr]) byColor[colorAr]={};
+    if(!byColor[colorAr][key]) byColor[colorAr][key]=0;
+    byColor[colorAr][key]+=count;
   });
 
-  Object.keys(byColor).forEach(color => {
-    output += `${color}:\n`;
-    Object.keys(byColor[color])
-      .sort((a,b)=>a-b)
-      .forEach(size => {
-        output += `${size} عدد ${byColor[color][size]}\n`;
-      });
-    output += "\n";
+  Object.keys(byColor).forEach(color=>{
+    out+=`${color}:\n`;
+    Object.keys(byColor[color]).forEach(k=>{
+      out+= isDouble
+        ? `وزن ${k} عدد ${byColor[color][k]}\n`
+        : `${k} عدد ${byColor[color][k]}\n`;
+    });
+    out+="\n";
   });
 
-  navigator.clipboard.writeText(output.trim());
+  navigator.clipboard.writeText(out.trim());
   alert("تم نسخ الجرد ✔");
 }
 
 /* ================= Init ================= */
-[searchModel,searchColor,searchSize]
-  .forEach(i=>i.addEventListener("input",renderTable));
-
+[searchModel,searchColor,searchSize].forEach(i=>i.addEventListener("input",renderTable));
 fetchDresses();
 </script>
 
