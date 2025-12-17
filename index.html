@@ -73,7 +73,7 @@ const db = firebase.database();
 // موديلات مزدوجة
 const doubleModels = ["simple","back less","sewar","koko","hand"];
 
-// قواعد الموديلات المزدوجة (ثابتة – ممنوع اللعب)
+// قواعد الموديلات المزدوجة (ثابتة)
 const doubleSizeRule = {
   1: "وزن 44–50",
   2: "وزن 51–63",
@@ -82,17 +82,20 @@ const doubleSizeRule = {
   5: "وزن 96–115"
 };
 
-// الجدول الأم – أي موديل عادي
+// الجدول الأم – الموديلات العادية
 const sizeToWeight = {
-  2: "وزن 44–50",
-  3: "وزن 51–57",
-  4: "وزن 58–63",
-  5: "وزن 64–70",
-  6: "وزن 71–76",
-  7: "وزن 77–82",
-  8: "وزن 83–90",
-  9: "وزن 91–96"
+  38: "وزن 44–50",
+  40: "وزن 44–50",
+  42: "وزن 51–57",
+  44: "وزن 58–63",
+  46: "وزن 64–70",
+  48: "وزن 71–76",
+  50: "وزن 77–82",
+  52: "وزن 83–90"
 };
+
+// موديلات صغيرة مقاس (ننزلهم نمرة)
+const sizeMinusOneModels = ["funika","shabarat"];
 
 // الألوان بالعربي
 const colorMap = {
@@ -179,7 +182,7 @@ function renderTable(){
     </tr>`).join("");
 }
 
-/* ================= الجرد (كله وزن) ================= */
+/* ================= الجرد (وزن فقط) ================= */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return alert("اعمل بحث عن موديل واحد");
@@ -193,14 +196,21 @@ function generateInventory(){
 
   rows.forEach(r=>{
     const colorEn=r.children[1].innerText.toLowerCase().trim();
-    const size=r.children[2].innerText;
+    let sizeKey=parseInt(r.children[2].innerText);
     const count=Number(r.children[3].innerText);
     if(!count) return;
 
+    // تنزيل نمرة واحدة فقط لـ Funika و Shabarat
+    if (sizeMinusOneModels.includes(modelName)) {
+      sizeKey = sizeKey - 2;
+    }
+
+    if(sizeKey < 38) return;
+
     const colorAr=colorMap[colorEn]||colorEn;
     const weight = isDouble
-      ? doubleSizeRule[size]
-      : sizeToWeight[size];
+      ? doubleSizeRule[sizeKey]
+      : sizeToWeight[sizeKey];
 
     if(!weight) return;
 
