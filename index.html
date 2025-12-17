@@ -4,31 +4,69 @@
   <meta charset="UTF-8" />
   <title>Available Dresses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 10px; background: #f9f9f9; font-size: 12px; }
-    h2 { color: #333; text-align: center; margin-top: 0; font-size: 16px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+      background: #f9f9f9;
+      font-size: 12px;
+    }
+    h2 {
+      color: #333;
+      text-align: center;
+      margin-top: 0;
+      font-size: 16px;
+    }
     .search-container {
-      display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 6px;
     }
     .search-container input {
-      padding: 4px; width: 90px; font-size: 11px;
-      border: 1px solid #ccc; border-radius: 4px; outline: none;
+      padding: 4px;
+      width: 90px;
+      font-size: 11px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      outline: none;
     }
     button {
       padding: 4px 10px;
       font-size: 11px;
       cursor: pointer;
     }
-    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 11px; }
-    th, td { border: 1px solid #e5e5e5; padding: 6px; text-align: center; }
-    th { background-color: #f2f2f2; }
-    tr:hover { background-color: #fafafa; }
-    .status { margin: 6px auto; text-align: center; color: #666; font-size: 11px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      font-size: 11px;
+    }
+    th, td {
+      border: 1px solid #e5e5e5;
+      padding: 6px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:hover {
+      background-color: #fafafa;
+    }
+    .status {
+      margin: 6px auto;
+      text-align: center;
+      color: #666;
+      font-size: 11px;
+    }
   </style>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
+
 <body>
 
 <h2>Available Dresses</h2>
@@ -36,7 +74,7 @@
 <div class="search-container">
   <input type="text" id="searchModel" placeholder="Model" />
   <input type="text" id="searchColor" placeholder="Color" />
-  <input type="text" id="searchSize"  placeholder="Size" />
+  <input type="text" id="searchSize" placeholder="Size" />
   <button onclick="generateInventory()">جَــرد</button>
 </div>
 
@@ -67,14 +105,19 @@ const firebaseConfig = {
   messagingSenderId: "697364304883",
   appId: "1:697364304883:web:e559c3e444497e3b533886"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ================= Constants ================= */
 
-// موديلات الدبل نمر
+// موديلات دبل نمر
 const doubleSizeModels = [
-  "simple","back less","sewar","koko","hand"
+  "simple",
+  "back less",
+  "sewar",
+  "koko",
+  "hand"
 ];
 
 // نمرة → وزن
@@ -91,10 +134,19 @@ const numToWeight = {
 
 // لون → عربي
 const colorMap = {
-  black:"أسود", white:"أبيض", red:"أحمر", pink:"زهري",
-  blue:"أزرق", green:"أخضر", purple:"بنفسجي",
-  yellow:"أصفر", beige:"بيج", brown:"بني",
-  grey:"رمادي", smok:"رمادي", burghandi:"خمري"
+  black: "أسود",
+  white: "أبيض",
+  red: "أحمر",
+  pink: "زهري",
+  blue: "أزرق",
+  green: "أخضر",
+  purple: "بنفسجي",
+  yellow: "أصفر",
+  beige: "بيج",
+  brown: "بني",
+  grey: "رمادي",
+  smok: "رمادي",
+  burghandi: "خمري"
 };
 
 /* ================= Elements ================= */
@@ -112,20 +164,39 @@ function escapeHtml(s) {
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
+function setLoading(msg = "Loading...") {
+  tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
+}
+
 /* ================= Fetch ================= */
 function fetchDresses() {
+  setLoading("Loading...");
+  statusMsg.textContent = "Fetching data…";
+
   db.ref("/dresses").on("value", snap => {
     const data = snap.val() || {};
     allDresses = [];
+
     for (const k in data) {
       const d = data[k];
-      if ((d.status||"").toLowerCase()==="in_stock") {
+      if ((d.status || "").toLowerCase() === "in_stock") {
         allDresses.push({
-          model:d.model, color:d.color, size:d.size
+          model: d.model,
+          color: d.color,
+          size: d.size
         });
       }
     }
+
+    statusMsg.textContent = allDresses.length
+      ? "Updated."
+      : "No data found.";
+
     renderTable();
+  }, err => {
+    console.error(err);
+    statusMsg.textContent = "Firebase error";
+    setLoading("Failed to load data");
   });
 }
 
@@ -136,6 +207,7 @@ function renderTable() {
   const sf = searchSize.value.toLowerCase();
 
   const grouped = {};
+
   allDresses
     .filter(d =>
       d.model.toLowerCase().includes(mf) &&
@@ -143,37 +215,47 @@ function renderTable() {
       d.size.toLowerCase().includes(sf)
     )
     .forEach(d => {
-      const k = `${d.model}__${d.color}__${d.size}`;
-      if (!grouped[k]) grouped[k] = {...d, count:0};
-      grouped[k].count++;
+      const key = `${d.model}__${d.color}__${d.size}`;
+      if (!grouped[key]) grouped[key] = { ...d, count: 0 };
+      grouped[key].count++;
     });
 
   const rows = Object.values(grouped);
 
-  rows.sort((a,b)=>{
+  if (!rows.length) {
+    setLoading("No results");
+    return;
+  }
+
+  // ترتيب أبجدي + ترتيب المقاسات
+  rows.sort((a, b) => {
     if (a.model.toLowerCase() < b.model.toLowerCase()) return -1;
     if (a.model.toLowerCase() > b.model.toLowerCase()) return 1;
     return parseInt(a.size) - parseInt(b.size);
   });
 
-  tableBody.innerHTML = rows.map(d=>`
+  tableBody.innerHTML = rows.map(d => `
     <tr>
       <td>${escapeHtml(d.model)}</td>
       <td>${escapeHtml(d.color)}</td>
       <td>${escapeHtml(d.size)}</td>
       <td>${d.count}</td>
-    </tr>`).join("") || `<tr><td colspan="4">No results</td></tr>`;
+    </tr>
+  `).join("");
 }
 
 /* ================= Inventory ================= */
 function generateInventory() {
   const rows = [...tableBody.querySelectorAll("tr")];
-  if (!rows.length) return alert("اعمل بحث عن موديل واحد");
+  if (!rows.length || rows[0].children.length < 4) {
+    alert("اعمل بحث عن موديل واحد");
+    return;
+  }
 
   const modelName = rows[0].children[0].innerText;
   let text = `==== ${modelName} ====\n\n`;
 
-  rows.forEach(r=>{
+  rows.forEach(r => {
     const colorEn = r.children[1].innerText.toLowerCase();
     const sizeNum = r.children[2].innerText;
     const count   = r.children[3].innerText;
@@ -191,7 +273,9 @@ function generateInventory() {
 }
 
 /* ================= Init ================= */
-[searchModel,searchColor,searchSize].forEach(i=>i.addEventListener("input",renderTable));
+[searchModel, searchColor, searchSize]
+  .forEach(i => i.addEventListener("input", renderTable));
+
 fetchDresses();
 </script>
 
