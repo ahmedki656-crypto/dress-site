@@ -15,11 +15,7 @@
       border: 1px solid #ccc; border-radius: 4px; outline: none;
     }
     .search-container input:focus { border-color: #888; }
-    button {
-      padding: 4px 10px;
-      font-size: 11px;
-      cursor: pointer;
-    }
+    button { padding: 4px 10px; font-size: 11px; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; background: #fff; font-size: 11px; }
     th, td { border: 1px solid #e5e5e5; padding: 6px; text-align: center; }
     th { background-color: #f2f2f2; font-size: 11px; }
@@ -73,34 +69,40 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ================= إضافات الجرد ================= */
+/* ================= إعدادات الجرد ================= */
 const doubleSizeModels = ["simple","back less","sewar","koko","hand"];
 
 const numToWeight = {
-  2:"44–50",
-  3:"51–57",
-  4:"58–63",
-  5:"64–70",
-  6:"71–76",
-  7:"77–82",
-  8:"83–90",
-  9:"91–110"
+  2:"44–50", 3:"51–57", 4:"58–63", 5:"64–70",
+  6:"71–76", 7:"77–82", 8:"83–90", 9:"91–110"
 };
 
+/* ====== الألوان (معدلة حسب طلبك) ====== */
 const colorMap = {
-  black:"أسود",
-  white:"أبيض",
-  red:"أحمر",
-  pink:"زهري",
-  blue:"أزرق",
-  green:"أخضر",
-  purple:"بنفسجي",
-  yellow:"أصفر",
-  beige:"بيج",
-  brown:"بني",
-  grey:"رمادي",
-  smok:"رمادي",
-  burghandi:"خمري"
+  black: "أسود",
+  white: "أبيض",
+  red: "أحمر",
+  pink: "زهري",
+
+  blue: "أزرق",
+  "baby blue": "أزرق",
+  "dark blue": "كحلي",
+  "royale blue": "أزرق نيلي",
+
+  green: "أخضر",
+  purple: "بنفسجي",
+  yellow: "أصفر",
+  beige: "بيج",
+  brown: "بني",
+
+  grey: "رمادي",
+  smok: "رمادي",
+  burghandi: "خمري",
+
+  "black & white": "أبيض وأسود",
+  "white & black": "أبيض وأسود",
+  "black&white": "أبيض وأسود",
+  "white&black": "أبيض وأسود"
 };
 
 /* ================= Elements ================= */
@@ -175,7 +177,7 @@ function fetchDresses() {
   );
 }
 
-/* ================= Render Table (كودك الأصلي) ================= */
+/* ================= Render Table ================= */
 function renderTable() {
   const modelF = searchModel.value.toLowerCase();
   const colorF = searchColor.value.toLowerCase();
@@ -200,6 +202,15 @@ function renderTable() {
     return;
   }
 
+  /* ترتيب الموديلات أبجدي + المقاسات رقمي */
+  groups.sort((a,b)=>{
+    const mA = a.model.toLowerCase();
+    const mB = b.model.toLowerCase();
+    if (mA < mB) return -1;
+    if (mA > mB) return 1;
+    return parseInt(a.size) - parseInt(b.size);
+  });
+
   tableBody.innerHTML = groups.map(d => `
     <tr>
       <td>${escapeHtml(d.model)}</td>
@@ -222,7 +233,11 @@ function generateInventory() {
   let text = `==== ${modelName} ====\n\n`;
 
   rows.forEach(r => {
-    const colorEn = r.children[1].innerText.toLowerCase();
+    const colorEn = r.children[1].innerText
+      .toLowerCase()
+      .replace(/\s+/g," ")
+      .trim();
+
     const sizeNum = r.children[2].innerText;
     const count   = r.children[3].innerText;
     const colorAr = colorMap[colorEn] || colorEn;
