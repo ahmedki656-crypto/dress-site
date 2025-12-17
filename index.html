@@ -73,7 +73,7 @@ const db = firebase.database();
 // موديلات مزدوجة
 const doubleModels = ["simple","back less","sewar","koko","hand"];
 
-// قواعد الموديلات المزدوجة (نهائية)
+// قواعد الموديلات المزدوجة (ثابتة – ممنوع اللعب)
 const doubleSizeRule = {
   1: "وزن 44–50",
   2: "وزن 51–63",
@@ -82,10 +82,16 @@ const doubleSizeRule = {
   5: "وزن 96–115"
 };
 
-// المقاسات العادية → أوروبي
-const sizeToEuro = {
-  2:38, 3:40, 4:42, 5:44,
-  6:46, 7:48, 8:50, 9:52
+// الجدول الأم – أي موديل عادي
+const sizeToWeight = {
+  2: "وزن 44–50",
+  3: "وزن 51–57",
+  4: "وزن 58–63",
+  5: "وزن 64–70",
+  6: "وزن 71–76",
+  7: "وزن 77–82",
+  8: "وزن 83–90",
+  9: "وزن 91–96"
 };
 
 // الألوان بالعربي
@@ -173,7 +179,7 @@ function renderTable(){
     </tr>`).join("");
 }
 
-/* ================= الجرد النهائي ================= */
+/* ================= الجرد (كله وزن) ================= */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return alert("اعمل بحث عن موديل واحد");
@@ -192,18 +198,21 @@ function generateInventory(){
     if(!count) return;
 
     const colorAr=colorMap[colorEn]||colorEn;
-    const key = isDouble ? doubleSizeRule[size] : sizeToEuro[size];
-    if(!key) return;
+    const weight = isDouble
+      ? doubleSizeRule[size]
+      : sizeToWeight[size];
+
+    if(!weight) return;
 
     if(!byColor[colorAr]) byColor[colorAr]={};
-    if(!byColor[colorAr][key]) byColor[colorAr][key]=0;
-    byColor[colorAr][key]+=count;
+    if(!byColor[colorAr][weight]) byColor[colorAr][weight]=0;
+    byColor[colorAr][weight]+=count;
   });
 
   Object.keys(byColor).forEach(color=>{
     out+=`${color}:\n`;
-    Object.keys(byColor[color]).forEach(k=>{
-      out+=`${k} عدد ${byColor[color][k]}\n`;
+    Object.keys(byColor[color]).forEach(w=>{
+      out+=`${w} عدد ${byColor[color][w]}\n`;
     });
     out+="\n";
   });
