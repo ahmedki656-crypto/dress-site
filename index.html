@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Available Dresses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <style>
     body { font-family: Arial, sans-serif; padding: 10px; background: #f9f9f9; font-size: 12px; }
     h2 { color: #333; text-align: center; margin-top: 0; font-size: 16px; }
@@ -14,11 +15,10 @@
       padding: 4px; width: 90px; font-size: 11px;
       border: 1px solid #ccc; border-radius: 4px; outline: none;
     }
-    .search-container input:focus { border-color: #888; }
     button { padding: 4px 10px; font-size: 11px; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; background: #fff; font-size: 11px; }
     th, td { border: 1px solid #e5e5e5; padding: 6px; text-align: center; }
-    th { background-color: #f2f2f2; font-size: 11px; }
+    th { background-color: #f2f2f2; }
     tr:hover { background-color: #fafafa; }
     .status { margin: 6px auto; text-align: center; color: #666; font-size: 11px; }
   </style>
@@ -63,21 +63,26 @@ const firebaseConfig = {
   projectId: "show-inventory",
   storageBucket: "show-inventory.firebasestorage.app",
   messagingSenderId: "697364304883",
-  appId: "1:697364304883:web:e559c3e444497e3b533886",
-  measurementId: "G-CTM21XYKLC"
+  appId: "1:697364304883:web:e559c3e444497e3b533886"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ================= إعدادات الجرد ================= */
-const doubleSizeModels = ["simple","back less","sewar","koko","hand"];
+/* ================= Maps ================= */
 
-const numToWeight = {
-  2:"44–50", 3:"51–57", 4:"58–63", 5:"64–70",
-  6:"71–76", 7:"77–82", 8:"83–90", 9:"91–110"
+// تحويل المقاس الداخلي → أوروبي
+const sizeNumToEuro = {
+  2: 38,
+  3: 40,
+  4: 42,
+  5: 44,
+  6: 46,
+  7: 48,
+  8: 50,
+  9: 52
 };
 
-/* ====== الألوان (معدلة حسب طلبك) ====== */
+// ألوان عربي
 const colorMap = {
   black: "أسود",
   white: "أبيض",
@@ -113,105 +118,76 @@ const searchSize  = document.getElementById("searchSize");
 const statusMsg   = document.getElementById("statusMsg");
 
 let allDresses = [];
-let fetchTimer = null;
-let hasFirstSnapshot = false;
 
 /* ================= Helpers ================= */
-function setStatus(text = "", isError = false) {
-  statusMsg.textContent = text || "";
-  statusMsg.style.color = isError ? "#c0392b" : "#666";
+function setStatus(t=""){ statusMsg.textContent=t; }
+function setLoading(t="Loading..."){
+  tableBody.innerHTML = `<tr><td colspan="4">${t}</td></tr>`;
 }
-function setLoading(msg = "Loading...") {
-  tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
-}
-function startFetchTimeout() {
-  clearTimeout(fetchTimer);
-  fetchTimer = setTimeout(() => {
-    if (!hasFirstSnapshot) {
-      setStatus("Connection is slow…", true);
-      setLoading("Still waiting for data…");
-    }
-  }, 12000);
-}
-function escapeHtml(s) {
-  s = (s ?? "").toString();
-  return s.replace(/[&<>"']/g, m =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function escapeHtml(s){
+  return (s??"").replace(/[&<>"']/g,m=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
+  ));
 }
 
-/* ================= Fetch (كودك الأصلي) ================= */
+/* ================= Fetch ================= */
 function fetchDresses() {
   setLoading();
   setStatus("Fetching data…");
-  hasFirstSnapshot = false;
-  startFetchTimeout();
 
-  const ref = db.ref("/dresses");
-  ref.on("value",
-    snapshot => {
-      clearTimeout(fetchTimer);
-      hasFirstSnapshot = true;
-      const data = snapshot.val() || {};
-      const list = [];
-      for (const key in data) {
-        const d = data[key] || {};
-        const status = (d.status ?? "").toLowerCase();
-        if (status === "in_stock") {
-          list.push({
-            model: (d.model ?? ""),
-            color: (d.color ?? ""),
-            size:  (d.size  ?? "")
-          });
-        }
+  db.ref("/dresses").on("value", snap => {
+    const data = snap.val() || {};
+    allDresses = [];
+
+    for (const k in data) {
+      const d = data[k];
+      if ((d.status||"").toLowerCase()==="in_stock") {
+        allDresses.push({
+          model:d.model,
+          color:d.color,
+          size:d.size
+        });
       }
-      allDresses = list;
-      setStatus(list.length ? "Updated." : "No 'in_stock' items currently.");
-      renderTable();
-    },
-    error => {
-      clearTimeout(fetchTimer);
-      setStatus("Firebase error", true);
-      setLoading("Failed to load data.");
-      console.error(error);
     }
-  );
+
+    setStatus(allDresses.length ? "Updated." : "No data");
+    renderTable();
+  });
 }
 
 /* ================= Render Table ================= */
 function renderTable() {
-  const modelF = searchModel.value.toLowerCase();
-  const colorF = searchColor.value.toLowerCase();
-  const sizeF  = searchSize.value.toLowerCase();
-
-  const filtered = allDresses.filter(d =>
-    d.model.toLowerCase().includes(modelF) &&
-    d.color.toLowerCase().includes(colorF) &&
-    d.size.toLowerCase().includes(sizeF)
-  );
+  const mf = searchModel.value.toLowerCase();
+  const cf = searchColor.value.toLowerCase();
+  const sf = searchSize.value.toLowerCase();
 
   const grouped = {};
-  for (const d of filtered) {
-    const key = `${d.model}__${d.color}__${d.size}`;
-    if (!grouped[key]) grouped[key] = { ...d, count: 0 };
-    grouped[key].count++;
-  }
 
-  const groups = Object.values(grouped);
-  if (!groups.length) {
+  allDresses
+    .filter(d =>
+      d.model.toLowerCase().includes(mf) &&
+      d.color.toLowerCase().includes(cf) &&
+      d.size.toLowerCase().includes(sf)
+    )
+    .forEach(d => {
+      const k = `${d.model}__${d.color}__${d.size}`;
+      if (!grouped[k]) grouped[k] = {...d, count:0};
+      grouped[k].count++;
+    });
+
+  const rows = Object.values(grouped);
+  if (!rows.length) {
     setLoading("No matching dresses.");
     return;
   }
 
-  /* ترتيب الموديلات أبجدي + المقاسات رقمي */
-  groups.sort((a,b)=>{
-    const mA = a.model.toLowerCase();
-    const mB = b.model.toLowerCase();
-    if (mA < mB) return -1;
-    if (mA > mB) return 1;
-    return parseInt(a.size) - parseInt(b.size);
+  rows.sort((a,b)=>{
+    if (a.model.toLowerCase()<b.model.toLowerCase()) return -1;
+    if (a.model.toLowerCase()>b.model.toLowerCase()) return 1;
+    return parseInt(a.size)-parseInt(b.size);
   });
 
-  tableBody.innerHTML = groups.map(d => `
+  tableBody.innerHTML = rows.map(d=>`
     <tr>
       <td>${escapeHtml(d.model)}</td>
       <td>${escapeHtml(d.color)}</td>
@@ -221,7 +197,7 @@ function renderTable() {
   `).join("");
 }
 
-/* ================= Inventory (الجرد) ================= */
+/* ================= Inventory (الجرد الصح) ================= */
 function generateInventory() {
   const rows = [...tableBody.querySelectorAll("tr")];
   if (!rows.length || rows[0].children.length < 4) {
@@ -230,32 +206,43 @@ function generateInventory() {
   }
 
   const modelName = rows[0].children[0].innerText;
-  let text = `==== ${modelName} ====\n\n`;
+  let output = `==== ${modelName} ====\n\n`;
 
-  rows.forEach(r => {
+  const byColor = {};
+
+  rows.forEach(r=>{
     const colorEn = r.children[1].innerText
-      .toLowerCase()
-      .replace(/\s+/g," ")
-      .trim();
+      .toLowerCase().replace(/\s+/g," ").trim();
 
     const sizeNum = r.children[2].innerText;
-    const count   = r.children[3].innerText;
-    const colorAr = colorMap[colorEn] || colorEn;
+    const count   = Number(r.children[3].innerText);
 
-    if (doubleSizeModels.includes(modelName.toLowerCase())) {
-      text += `${colorAr} وزن ${numToWeight[sizeNum]} عدد ${count}\n`;
-    } else {
-      text += `${colorAr} مقاس ${sizeNum} عدد ${count}\n`;
-    }
+    const colorAr = colorMap[colorEn] || colorEn;
+    const euro    = sizeNumToEuro[sizeNum];
+
+    if (!byColor[colorAr]) byColor[colorAr] = {};
+    if (!byColor[colorAr][euro]) byColor[colorAr][euro] = 0;
+
+    byColor[colorAr][euro] += count;
   });
 
-  navigator.clipboard.writeText(text.trim());
+  Object.keys(byColor).forEach(color=>{
+    output += `${color}:\n`;
+    Object.keys(byColor[color])
+      .sort((a,b)=>a-b)
+      .forEach(size=>{
+        output += `${size} عدد ${byColor[color][size]}\n`;
+      });
+    output += "\n";
+  });
+
+  navigator.clipboard.writeText(output.trim());
   alert("تم نسخ الجرد ✔");
 }
 
 /* ================= Init ================= */
-[searchModel, searchColor, searchSize]
-  .forEach(inp => inp.addEventListener("input", renderTable));
+[searchModel,searchColor,searchSize]
+  .forEach(i=>i.addEventListener("input",renderTable));
 
 fetchDresses();
 </script>
