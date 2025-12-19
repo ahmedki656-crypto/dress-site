@@ -82,7 +82,7 @@ const doubleSizeRule = {
   5: "وزن 96–115"
 };
 
-// الجدول الأم – الموديلات العادية
+// الجدول الأم – كل الموديلات العادية
 const sizeToWeight = {
   38: "وزن 44–50",
   40: "وزن 44–50",
@@ -94,7 +94,7 @@ const sizeToWeight = {
   52: "وزن 83–90"
 };
 
-// موديلات صغيرة مقاس (ننزلهم نمرة)
+// موديلات صغيرة مقاس (ننزلهم نمرة وحدة فقط)
 const sizeMinusOneModels = ["funika","shabarat"];
 
 // الألوان بالعربي
@@ -121,6 +121,16 @@ function setLoading(msg="Loading..."){
   tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
 }
 function setStatus(msg=""){ statusMsg.textContent = msg; }
+
+// نسخ مضمون 100%
+function copyText(text){
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+}
 
 /* ================= Fetch ================= */
 function fetchDresses(){
@@ -200,8 +210,8 @@ function generateInventory(){
     const count=Number(r.children[3].innerText);
     if(!count) return;
 
-    // تنزيل نمرة واحدة فقط لـ Funika و Shabarat
-    if (sizeMinusOneModels.includes(modelName)) {
+    // تنزيل نمرة وحدة فقط لـ Funika و Shabarat
+    if(sizeMinusOneModels.includes(modelName)){
       sizeKey = sizeKey - 2;
     }
 
@@ -227,7 +237,7 @@ function generateInventory(){
     out+="\n";
   });
 
-  navigator.clipboard.writeText(out.trim());
+  copyText(out.trim());
   alert("تم نسخ الجرد ✔");
 }
 
