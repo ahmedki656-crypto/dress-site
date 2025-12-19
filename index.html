@@ -56,14 +56,9 @@ firebase.initializeApp({
 const db=firebase.database();
 
 /* ===== القواعد ===== */
-
-// موديلات مزدوجة عامة
 const doubleModels=["simple","back less","sewar","koko","hand"];
-
-// Funika / Shabarat ننزل نمرة
 const sizeMinusOneModels=["funika","shabarat"];
 
-// جدول الوزن للموديلات العادية (2–9)
 const normalWeightByNum={
   2:"وزن 44–50",
   3:"وزن 51–57",
@@ -75,7 +70,6 @@ const normalWeightByNum={
   9:"وزن 91–96"
 };
 
-// جدول الوزن للموديلات المزدوجة
 const doubleWeightByNum={
   1:"وزن 44–50",
   2:"وزن 51–63",
@@ -84,13 +78,12 @@ const doubleWeightByNum={
   5:"وزن 96–115"
 };
 
-// Oscar b (قاعدة خاصة)
+// Oscar b قاعدة خاصة
 const oscarBWeightByNum={
   1:"وزن لحد 60",
   2:"وزن لحد 80"
 };
 
-// الألوان بالعربي
 const colorMap={
   "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
   "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
@@ -121,7 +114,7 @@ db.ref("/dresses").on("value",snap=>{
   renderTable();
 });
 
-/* ===== عرض الجدول + البحث + الترتيب ===== */
+/* ===== عرض الجدول ===== */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
@@ -160,14 +153,22 @@ function renderTable(){
     : `<tr><td colspan="4">No results</td></tr>`;
 }
 
-/* ===== الجرد ===== */
+/* ===== الجرد (مع منع الدمج) ===== */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return;
 
-  const modelRaw=rows[0].children[0].innerText;
-  const model=modelRaw.toLowerCase();
-  const isDouble=doubleModels.includes(model);
+  const modelSet=new Set(
+    rows.map(r=>r.children[0].innerText.trim().toLowerCase())
+  );
+
+  if(modelSet.size>1){
+    alert("اعمل الجرد على موديل واحد فقط (مثلاً: Oscar أو Oscar b)");
+    return;
+  }
+
+  const modelRaw=[...modelSet][0];
+  const isDouble=doubleModels.includes(modelRaw);
 
   let out=`==== ${modelRaw} ====\n\n`;
   const byColor={};
@@ -177,16 +178,16 @@ function generateInventory(){
     const count=parseInt(r.children[3].innerText);
     if(!count) return;
 
-    if(sizeMinusOneModels.includes(model)){
+    if(sizeMinusOneModels.includes(modelRaw)){
       num=Math.max(2,num-1);
     }
 
     let weight;
-    if(model==="oscar b"){
+    if(modelRaw==="oscar b"){
       weight=oscarBWeightByNum[num];
     }
     else if(isDouble){
-      const idx = num<=3?1 : num<=5?2 : num<=7?3 : num==8?4 : 5;
+      const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
       weight=doubleWeightByNum[idx];
     }
     else{
