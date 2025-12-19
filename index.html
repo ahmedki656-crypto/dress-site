@@ -84,6 +84,7 @@ const oscarBWeightByNum={
   2:"وزن لحد 80"
 };
 
+// الألوان بالعربي
 const colorMap={
   "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
   "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
@@ -153,61 +154,66 @@ function renderTable(){
     : `<tr><td colspan="4">No results</td></tr>`;
 }
 
-/* ===== الجرد (مع منع الدمج) ===== */
+/* ===== الجرد (كل موديل لحاله) ===== */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return;
 
-  const modelSet=new Set(
-    rows.map(r=>r.children[0].innerText.trim().toLowerCase())
-  );
+  let out="";
+  const byModel={};
 
-  if(modelSet.size>1){
-    alert("اعمل الجرد على موديل واحد فقط (مثلاً: Oscar أو Oscar b)");
-    return;
-  }
-
-  const modelRaw=[...modelSet][0];
-  const isDouble=doubleModels.includes(modelRaw);
-
-  let out=`==== ${modelRaw} ====\n\n`;
-  const byColor={};
-
+  // 1) نجمع حسب الموديل
   rows.forEach(r=>{
-    let num=parseInt(r.children[2].innerText);
-    const count=parseInt(r.children[3].innerText);
-    if(!count) return;
-
-    if(sizeMinusOneModels.includes(modelRaw)){
-      num=Math.max(2,num-1);
-    }
-
-    let weight;
-    if(modelRaw==="oscar b"){
-      weight=oscarBWeightByNum[num];
-    }
-    else if(isDouble){
-      const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
-      weight=doubleWeightByNum[idx];
-    }
-    else{
-      weight=normalWeightByNum[num];
-    }
-    if(!weight) return;
-
-    const colorEn=r.children[1].innerText.toLowerCase().trim();
-    const color=colorMap[colorEn]||colorEn;
-
-    if(!byColor[color]) byColor[color]={};
-    byColor[color][weight]=(byColor[color][weight]||0)+count;
+    const model=r.children[0].innerText.trim().toLowerCase();
+    if(!byModel[model]) byModel[model]=[];
+    byModel[model].push(r);
   });
 
-  Object.keys(byColor).forEach(c=>{
-    out+=`${c}:\n`;
-    Object.keys(byColor[c]).forEach(w=>{
-      out+=`${w} عدد ${byColor[c][w]}\n`;
+  // 2) نجرد كل موديل لحاله
+  Object.keys(byModel).forEach(model=>{
+    const rowsOfModel=byModel[model];
+    const isDouble=doubleModels.includes(model);
+
+    out+=`==== ${model} ====\n\n`;
+
+    const byColor={};
+
+    rowsOfModel.forEach(r=>{
+      let num=parseInt(r.children[2].innerText);
+      const count=parseInt(r.children[3].innerText);
+      if(!count) return;
+
+      if(sizeMinusOneModels.includes(model)){
+        num=Math.max(2,num-1);
+      }
+
+      let weight;
+      if(model==="oscar b"){
+        weight=oscarBWeightByNum[num];
+      }
+      else if(isDouble){
+        const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
+        weight=doubleWeightByNum[idx];
+      }
+      else{
+        weight=normalWeightByNum[num];
+      }
+      if(!weight) return;
+
+      const colorEn=r.children[1].innerText.toLowerCase().trim();
+      const color=colorMap[colorEn]||colorEn;
+
+      if(!byColor[color]) byColor[color]={};
+      byColor[color][weight]=(byColor[color][weight]||0)+count;
     });
-    out+="\n";
+
+    Object.keys(byColor).forEach(c=>{
+      out+=`${c}:\n`;
+      Object.keys(byColor[c]).forEach(w=>{
+        out+=`${w} عدد ${byColor[c][w]}\n`;
+      });
+      out+="\n";
+    });
   });
 
   copyBox.value=out.trim();
