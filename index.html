@@ -34,7 +34,10 @@ th{background:#f2f2f2}
 <table>
 <thead>
 <tr>
-  <th>Model</th><th>Color</th><th>Size</th><th>Count</th>
+  <th>Model</th>
+  <th>Color</th>
+  <th>Size</th>
+  <th>Count</th>
 </tr>
 </thead>
 <tbody id="dressesTable">
@@ -45,6 +48,7 @@ th{background:#f2f2f2}
 <textarea id="copyBox" style="position:fixed;left:-9999px;"></textarea>
 
 <script>
+/* Firebase */
 firebase.initializeApp({
   apiKey:"AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
   databaseURL:"https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
@@ -74,8 +78,13 @@ const doubleWeightByNum={
   5:"وزن 96–115"
 };
 
+/* عناصر */
 const tableBody=document.getElementById("dressesTable");
+const searchModel=document.getElementById("searchModel");
+const searchColor=document.getElementById("searchColor");
+const searchSize=document.getElementById("searchSize");
 const copyBox=document.getElementById("copyBox");
+
 let allDresses=[];
 
 /* تحميل البيانات */
@@ -90,27 +99,43 @@ db.ref("/dresses").on("value",snap=>{
   renderTable();
 });
 
-/* عرض الجدول */
+/* عرض الجدول + فلترة + ترتيب */
 function renderTable(){
-  const m=searchModel.value.toLowerCase();
-  const c=searchColor.value.toLowerCase();
-  const s=searchSize.value;
+  const mf=searchModel.value.toLowerCase();
+  const cf=searchColor.value.toLowerCase();
+  const sf=searchSize.value;
 
-  const g={};
-  allDresses.filter(d=>
-    d.model.toLowerCase().includes(m) &&
-    d.color.toLowerCase().includes(c) &&
-    d.size.toString().includes(s)
-  ).forEach(d=>{
-    const k=`${d.model}_${d.color}_${d.size}`;
-    if(!g[k]) g[k]={...d,count:0};
-    g[k].count++;
+  const grouped={};
+
+  allDresses
+    .filter(d=>
+      d.model.toLowerCase().includes(mf) &&
+      d.color.toLowerCase().includes(cf) &&
+      d.size.toString().includes(sf)
+    )
+    .forEach(d=>{
+      const k=`${d.model}_${d.color}_${d.size}`;
+      if(!grouped[k]) grouped[k]={...d,count:0};
+      grouped[k].count++;
+    });
+
+  const rows=Object.values(grouped);
+
+  rows.sort((a,b)=>{
+    if(a.model.toLowerCase()<b.model.toLowerCase()) return -1;
+    if(a.model.toLowerCase()>b.model.toLowerCase()) return 1;
+    return parseInt(a.size)-parseInt(b.size);
   });
 
-  const rows=Object.values(g).sort((a,b)=>a.size-b.size);
-  tableBody.innerHTML=rows.map(d=>`
-    <tr><td>${d.model}</td><td>${d.color}</td><td>${d.size}</td><td>${d.count}</td></tr>
-  `).join("")||`<tr><td colspan="4">No results</td></tr>`;
+  tableBody.innerHTML = rows.length
+    ? rows.map(d=>`
+        <tr>
+          <td>${d.model}</td>
+          <td>${d.color}</td>
+          <td>${d.size}</td>
+          <td>${d.count}</td>
+        </tr>`).join("")
+    : `<tr><td colspan="4">No results</td></tr>`;
 }
 
 /* الجرد */
@@ -159,6 +184,10 @@ function generateInventory(){
   document.execCommand("copy");
   alert("تم نسخ الجرد ✔");
 }
+
+/* تفعيل البحث */
+[searchModel,searchColor,searchSize]
+  .forEach(i=>i.addEventListener("input",renderTable));
 </script>
 
 </body>
