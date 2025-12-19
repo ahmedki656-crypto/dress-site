@@ -1,30 +1,24 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Available Dresses</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<title>Available Dresses</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body { font-family: Arial, sans-serif; padding: 10px; background: #f9f9f9; font-size: 12px; }
-    h2 { color: #333; text-align: center; margin-top: 0; font-size: 16px; }
-    .search-container {
-      display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 10px;
-    }
-    .search-container input {
-      padding: 4px; width: 90px; font-size: 11px;
-      border: 1px solid #ccc; border-radius: 4px;
-    }
-    button { padding: 4px 10px; font-size: 11px; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 11px; }
-    th, td { border: 1px solid #e5e5e5; padding: 6px; text-align: center; }
-    th { background-color: #f2f2f2; }
-    tr:hover { background-color: #fafafa; }
-    .status { margin: 6px auto; text-align: center; color: #666; font-size: 11px; }
-  </style>
+<style>
+body { font-family: Arial; background:#f9f9f9; font-size:12px; padding:10px; }
+h2 { text-align:center; font-size:16px; margin:0 0 10px; }
+.search-container { display:flex; justify-content:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+input { padding:4px; width:90px; font-size:11px; }
+button { padding:4px 10px; font-size:11px; cursor:pointer; }
+table { width:100%; border-collapse:collapse; background:#fff; }
+th,td { border:1px solid #ddd; padding:6px; text-align:center; }
+th { background:#f2f2f2; }
+.status { text-align:center; margin:6px; color:#666; }
+</style>
 
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 
 <body>
@@ -34,52 +28,50 @@
 <div class="search-container">
   <input id="searchModel" placeholder="Model">
   <input id="searchColor" placeholder="Color">
-  <input id="searchSize"  placeholder="Size">
+  <input id="searchSize" placeholder="Size">
   <button onclick="generateInventory()">جرد</button>
 </div>
 
 <div class="status" id="statusMsg"></div>
 
 <table>
-  <thead>
-    <tr>
-      <th>Model</th>
-      <th>Color</th>
-      <th>Size</th>
-      <th>Count</th>
-    </tr>
-  </thead>
-  <tbody id="dressesTable">
-    <tr><td colspan="4">Loading...</td></tr>
-  </tbody>
+<thead>
+<tr>
+  <th>Model</th>
+  <th>Color</th>
+  <th>Size</th>
+  <th>Count</th>
+</tr>
+</thead>
+<tbody id="dressesTable">
+<tr><td colspan="4">Loading...</td></tr>
+</tbody>
 </table>
 
+<!-- صندوق النسخ المضمون -->
+<textarea id="copyBox" style="position:fixed;left:-9999px;"></textarea>
+
 <script>
-/* ================= Firebase ================= */
+/* Firebase */
 firebase.initializeApp({
-  apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-  authDomain: "show-inventory.firebaseapp.com",
-  databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "show-inventory"
+  apiKey:"AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
+  databaseURL:"https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
 });
-const db = firebase.database();
+const db=firebase.database();
 
-/* ================= قواعد ================= */
+/* قواعد */
+const doubleModels=["simple","back less","sewar","koko","hand"];
+const sizeMinusOneModels=["funika","shabarat"];
 
-// موديلات مزدوجة
-const doubleModels = ["simple","back less","sewar","koko","hand"];
-
-// تحويل مقاس → نمرة مزدوجة
-const sizeToDoubleIndex = {
-  38:1, 40:1,
-  42:2, 44:2,
-  46:3, 48:3,
+const sizeToDoubleIndex={
+  38:1,40:1,
+  42:2,44:2,
+  46:3,48:3,
   50:4,
   52:5
 };
 
-// وزن الموديلات المزدوجة
-const doubleSizeRule = {
+const doubleSizeRule={
   1:"وزن 44–50",
   2:"وزن 51–63",
   3:"وزن 64–76",
@@ -87,8 +79,7 @@ const doubleSizeRule = {
   5:"وزن 96–115"
 };
 
-// وزن الموديلات العادية
-const sizeToWeight = {
+const sizeToWeight={
   38:"وزن 44–50",
   40:"وزن 44–50",
   42:"وزن 51–57",
@@ -99,59 +90,43 @@ const sizeToWeight = {
   52:"وزن 83–90"
 };
 
-// ننزلهم نمرة وحدة
-const sizeMinusOneModels = ["funika","shabarat"];
-
-// الألوان
-const colorMap = {
-  black:"أسود", white:"أبيض", red:"أحمر", pink:"زهري",
-  blue:"أزرق", "baby blue":"أزرق", "dark blue":"كحلي",
-  "royale blue":"أزرق نيلي",
-  green:"أخضر", purple:"بنفسجي", yellow:"أصفر",
-  beige:"بيج", brown:"بني", grey:"رمادي", smok:"رمادي",
-  burghandi:"خمري",
+const colorMap={
+  black:"أسود",white:"أبيض",red:"أحمر",pink:"زهري",
+  blue:"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
+  green:"أخضر",purple:"بنفسجي",yellow:"أصفر",
+  beige:"بيج",brown:"بني",grey:"رمادي",smok:"رمادي",burghandi:"خمري",
   "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
   "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
 };
 
-/* ================= عناصر ================= */
-const tableBody = document.getElementById("dressesTable");
-const searchModel = document.getElementById("searchModel");
-const searchColor = document.getElementById("searchColor");
-const searchSize  = document.getElementById("searchSize");
+/* عناصر */
+const tableBody=document.getElementById("dressesTable");
+const searchModel=document.getElementById("searchModel");
+const searchColor=document.getElementById("searchColor");
+const searchSize=document.getElementById("searchSize");
+const copyBox=document.getElementById("copyBox");
 
-let allDresses = [];
+let allDresses=[];
 
-/* ================= نسخ مضمون ================= */
-function copyText(text){
-  const ta=document.createElement("textarea");
-  ta.value=text;
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand("copy");
-  document.body.removeChild(ta);
-}
-
-/* ================= تحميل البيانات ================= */
-db.ref("/dresses").on("value", snap=>{
+/* تحميل البيانات */
+db.ref("/dresses").on("value",snap=>{
   const data=snap.val()||{};
   allDresses=[];
   for(const k in data){
-    const d=data[k];
-    if((d.status||"").toLowerCase()==="in_stock"){
-      allDresses.push(d);
+    if((data[k].status||"").toLowerCase()==="in_stock"){
+      allDresses.push(data[k]);
     }
   }
   renderTable();
 });
 
-/* ================= الجدول ================= */
+/* عرض الجدول */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
   const sf=searchSize.value.toLowerCase();
-
   const grouped={};
+
   allDresses.filter(d=>
     d.model.toLowerCase().includes(mf) &&
     d.color.toLowerCase().includes(cf) &&
@@ -163,6 +138,13 @@ function renderTable(){
   });
 
   const rows=Object.values(grouped);
+
+  rows.sort((a,b)=>{
+    if(a.model.toLowerCase()<b.model.toLowerCase()) return -1;
+    if(a.model.toLowerCase()>b.model.toLowerCase()) return 1;
+    return parseInt(a.size)-parseInt(b.size);
+  });
+
   if(!rows.length){
     tableBody.innerHTML=`<tr><td colspan="4">No results</td></tr>`;
     return;
@@ -174,10 +156,11 @@ function renderTable(){
       <td>${d.color}</td>
       <td>${d.size}</td>
       <td>${d.count}</td>
-    </tr>`).join("");
+    </tr>
+  `).join("");
 }
 
-/* ================= الجرد ================= */
+/* الجرد */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return alert("ابحث عن موديل واحد");
@@ -206,7 +189,7 @@ function generateInventory(){
     }
     if(!weight) return;
 
-    const color=colorMap[r.children[1].innerText.toLowerCase()] || r.children[1].innerText;
+    const color=colorMap[r.children[1].innerText.toLowerCase()]||r.children[1].innerText;
     if(!byColor[color]) byColor[color]={};
     byColor[color][weight]=(byColor[color][weight]||0)+count;
   });
@@ -219,11 +202,13 @@ function generateInventory(){
     out+="\n";
   });
 
-  copyText(out.trim());
+  copyBox.value=out.trim();
+  copyBox.select();
+  document.execCommand("copy");
   alert("تم نسخ الجرد ✔");
 }
 
-/* ================= Events ================= */
+/* أحداث */
 [searchModel,searchColor,searchSize].forEach(i=>i.addEventListener("input",renderTable));
 </script>
 
