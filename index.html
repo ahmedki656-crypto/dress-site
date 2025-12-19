@@ -13,7 +13,7 @@
     }
     .search-container input {
       padding: 4px; width: 90px; font-size: 11px;
-      border: 1px solid #ccc; border-radius: 4px; outline: none;
+      border: 1px solid #ccc; border-radius: 4px;
     }
     button { padding: 4px 10px; font-size: 11px; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; background: #fff; font-size: 11px; }
@@ -32,10 +32,10 @@
 <h2>Available Dresses</h2>
 
 <div class="search-container">
-  <input type="text" id="searchModel" placeholder="Model" />
-  <input type="text" id="searchColor" placeholder="Color" />
-  <input type="text" id="searchSize"  placeholder="Size" />
-  <button onclick="generateInventory()">جَــرد</button>
+  <input id="searchModel" placeholder="Model">
+  <input id="searchColor" placeholder="Color">
+  <input id="searchSize"  placeholder="Size">
+  <button onclick="generateInventory()">جرد</button>
 </div>
 
 <div class="status" id="statusMsg"></div>
@@ -56,134 +56,119 @@
 
 <script>
 /* ================= Firebase ================= */
-const firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
   authDomain: "show-inventory.firebaseapp.com",
   databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "show-inventory",
-  storageBucket: "show-inventory.firebasestorage.app",
-  messagingSenderId: "697364304883",
-  appId: "1:697364304883:web:e559c3e444497e3b533886"
-};
-firebase.initializeApp(firebaseConfig);
+  projectId: "show-inventory"
+});
 const db = firebase.database();
 
-/* ================= ثوابت ================= */
+/* ================= قواعد ================= */
 
 // موديلات مزدوجة
 const doubleModels = ["simple","back less","sewar","koko","hand"];
 
-// قواعد الموديلات المزدوجة (ثابتة)
+// تحويل مقاس → نمرة مزدوجة
+const sizeToDoubleIndex = {
+  38:1, 40:1,
+  42:2, 44:2,
+  46:3, 48:3,
+  50:4,
+  52:5
+};
+
+// وزن الموديلات المزدوجة
 const doubleSizeRule = {
-  1: "وزن 44–50",
-  2: "وزن 51–63",
-  3: "وزن 64–76",
-  4: "وزن 77–90",
-  5: "وزن 96–115"
+  1:"وزن 44–50",
+  2:"وزن 51–63",
+  3:"وزن 64–76",
+  4:"وزن 77–90",
+  5:"وزن 96–115"
 };
 
-// الجدول الأم – كل الموديلات العادية
+// وزن الموديلات العادية
 const sizeToWeight = {
-  38: "وزن 44–50",
-  40: "وزن 44–50",
-  42: "وزن 51–57",
-  44: "وزن 58–63",
-  46: "وزن 64–70",
-  48: "وزن 71–76",
-  50: "وزن 77–82",
-  52: "وزن 83–90"
+  38:"وزن 44–50",
+  40:"وزن 44–50",
+  42:"وزن 51–57",
+  44:"وزن 58–63",
+  46:"وزن 64–70",
+  48:"وزن 71–76",
+  50:"وزن 77–82",
+  52:"وزن 83–90"
 };
 
-// موديلات صغيرة مقاس (ننزلهم نمرة وحدة فقط)
+// ننزلهم نمرة وحدة
 const sizeMinusOneModels = ["funika","shabarat"];
 
-// الألوان بالعربي
+// الألوان
 const colorMap = {
   black:"أسود", white:"أبيض", red:"أحمر", pink:"زهري",
-  blue:"أزرق", "baby blue":"أزرق", "dark blue":"كحلي", "royale blue":"أزرق نيلي",
+  blue:"أزرق", "baby blue":"أزرق", "dark blue":"كحلي",
+  "royale blue":"أزرق نيلي",
   green:"أخضر", purple:"بنفسجي", yellow:"أصفر",
-  beige:"بيج", brown:"بني", grey:"رمادي", smok:"رمادي", burghandi:"خمري",
+  beige:"بيج", brown:"بني", grey:"رمادي", smok:"رمادي",
+  burghandi:"خمري",
   "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
   "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
 };
 
-/* ================= Elements ================= */
+/* ================= عناصر ================= */
 const tableBody = document.getElementById("dressesTable");
 const searchModel = document.getElementById("searchModel");
 const searchColor = document.getElementById("searchColor");
 const searchSize  = document.getElementById("searchSize");
-const statusMsg   = document.getElementById("statusMsg");
 
 let allDresses = [];
 
-/* ================= Helpers ================= */
-function setLoading(msg="Loading..."){
-  tableBody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
-}
-function setStatus(msg=""){ statusMsg.textContent = msg; }
-
-// نسخ مضمون 100%
+/* ================= نسخ مضمون ================= */
 function copyText(text){
-  const ta = document.createElement("textarea");
-  ta.value = text;
+  const ta=document.createElement("textarea");
+  ta.value=text;
   document.body.appendChild(ta);
   ta.select();
   document.execCommand("copy");
   document.body.removeChild(ta);
 }
 
-/* ================= Fetch ================= */
-function fetchDresses(){
-  setLoading();
-  setStatus("Fetching data…");
-
-  db.ref("/dresses").on("value", snap=>{
-    const data = snap.val() || {};
-    allDresses = [];
-
-    for(const k in data){
-      const d = data[k];
-      if((d.status||"").toLowerCase()==="in_stock"){
-        allDresses.push({
-          model:d.model||"",
-          color:d.color||"",
-          size:d.size||""
-        });
-      }
+/* ================= تحميل البيانات ================= */
+db.ref("/dresses").on("value", snap=>{
+  const data=snap.val()||{};
+  allDresses=[];
+  for(const k in data){
+    const d=data[k];
+    if((d.status||"").toLowerCase()==="in_stock"){
+      allDresses.push(d);
     }
-    setStatus("Updated.");
-    renderTable();
-  });
-}
+  }
+  renderTable();
+});
 
-/* ================= Render Table ================= */
+/* ================= الجدول ================= */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
   const sf=searchSize.value.toLowerCase();
 
   const grouped={};
-
-  allDresses
-    .filter(d=>d.model.toLowerCase().includes(mf)
-      && d.color.toLowerCase().includes(cf)
-      && d.size.toLowerCase().includes(sf))
-    .forEach(d=>{
-      const k=`${d.model}__${d.color}__${d.size}`;
-      if(!grouped[k]) grouped[k]={...d,count:0};
-      grouped[k].count++;
-    });
-
-  const rows=Object.values(grouped);
-  if(!rows.length){ setLoading("No results"); return; }
-
-  rows.sort((a,b)=>{
-    if(a.model.toLowerCase()<b.model.toLowerCase()) return -1;
-    if(a.model.toLowerCase()>b.model.toLowerCase()) return 1;
-    return parseInt(a.size)-parseInt(b.size);
+  allDresses.filter(d=>
+    d.model.toLowerCase().includes(mf) &&
+    d.color.toLowerCase().includes(cf) &&
+    d.size.toString().includes(sf)
+  ).forEach(d=>{
+    const k=`${d.model}_${d.color}_${d.size}`;
+    if(!grouped[k]) grouped[k]={...d,count:0};
+    grouped[k].count++;
   });
 
-  tableBody.innerHTML = rows.map(d=>`
+  const rows=Object.values(grouped);
+  if(!rows.length){
+    tableBody.innerHTML=`<tr><td colspan="4">No results</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML=rows.map(d=>`
     <tr>
       <td>${d.model}</td>
       <td>${d.color}</td>
@@ -192,47 +177,44 @@ function renderTable(){
     </tr>`).join("");
 }
 
-/* ================= الجرد (وزن فقط) ================= */
+/* ================= الجرد ================= */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
-  if(!rows.length) return alert("اعمل بحث عن موديل واحد");
+  if(!rows.length) return alert("ابحث عن موديل واحد");
 
-  const modelNameRaw=rows[0].children[0].innerText;
-  const modelName=modelNameRaw.toLowerCase();
-  const isDouble = doubleModels.includes(modelName);
+  const modelRaw=rows[0].children[0].innerText;
+  const model=modelRaw.toLowerCase();
+  const isDouble=doubleModels.includes(model);
 
-  let out=`==== ${modelNameRaw} ====\n\n`;
+  let out=`==== ${modelRaw} ====\n\n`;
   const byColor={};
 
   rows.forEach(r=>{
-    const colorEn=r.children[1].innerText.toLowerCase().trim();
-    let sizeKey=parseInt(r.children[2].innerText);
-    const count=Number(r.children[3].innerText);
+    let size=parseInt(r.children[2].innerText);
+    const count=parseInt(r.children[3].innerText);
     if(!count) return;
 
-    // تنزيل نمرة وحدة فقط لـ Funika و Shabarat
-    if(sizeMinusOneModels.includes(modelName)){
-      sizeKey = sizeKey - 2;
+    if(sizeMinusOneModels.includes(model)) size-=2;
+    if(size<38) return;
+
+    let weight;
+    if(isDouble){
+      const idx=sizeToDoubleIndex[size];
+      weight=doubleSizeRule[idx];
+    } else {
+      weight=sizeToWeight[size];
     }
-
-    if(sizeKey < 38) return;
-
-    const colorAr=colorMap[colorEn]||colorEn;
-    const weight = isDouble
-      ? doubleSizeRule[sizeKey]
-      : sizeToWeight[sizeKey];
-
     if(!weight) return;
 
-    if(!byColor[colorAr]) byColor[colorAr]={};
-    if(!byColor[colorAr][weight]) byColor[colorAr][weight]=0;
-    byColor[colorAr][weight]+=count;
+    const color=colorMap[r.children[1].innerText.toLowerCase()] || r.children[1].innerText;
+    if(!byColor[color]) byColor[color]={};
+    byColor[color][weight]=(byColor[color][weight]||0)+count;
   });
 
-  Object.keys(byColor).forEach(color=>{
-    out+=`${color}:\n`;
-    Object.keys(byColor[color]).forEach(w=>{
-      out+=`${w} عدد ${byColor[color][w]}\n`;
+  Object.keys(byColor).forEach(c=>{
+    out+=`${c}:\n`;
+    Object.keys(byColor[c]).forEach(w=>{
+      out+=`${w} عدد ${byColor[c][w]}\n`;
     });
     out+="\n";
   });
@@ -241,11 +223,8 @@ function generateInventory(){
   alert("تم نسخ الجرد ✔");
 }
 
-/* ================= Init ================= */
-[searchModel,searchColor,searchSize]
-  .forEach(i=>i.addEventListener("input",renderTable));
-
-fetchDresses();
+/* ================= Events ================= */
+[searchModel,searchColor,searchSize].forEach(i=>i.addEventListener("input",renderTable));
 </script>
 
 </body>
