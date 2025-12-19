@@ -78,6 +78,30 @@ const doubleWeightByNum={
   5:"وزن 96–115"
 };
 
+/* الألوان بالعربي */
+const colorMap={
+  "black":"أسود",
+  "white":"أبيض",
+  "red":"أحمر",
+  "pink":"زهري",
+  "blue":"أزرق",
+  "baby blue":"أزرق",
+  "dark blue":"كحلي",
+  "royale blue":"أزرق نيلي",
+  "green":"أخضر",
+  "purple":"بنفسجي",
+  "yellow":"أصفر",
+  "beige":"بيج",
+  "brown":"بني",
+  "grey":"رمادي",
+  "smok":"رمادي",
+  "burghandi":"خمري",
+  "black & white":"أبيض وأسود",
+  "white & black":"أبيض وأسود",
+  "black&white":"أبيض وأسود",
+  "white&black":"أبيض وأسود"
+};
+
 /* عناصر */
 const tableBody=document.getElementById("dressesTable");
 const searchModel=document.getElementById("searchModel");
@@ -99,7 +123,7 @@ db.ref("/dresses").on("value",snap=>{
   renderTable();
 });
 
-/* عرض الجدول + فلترة + ترتيب */
+/* عرض الجدول + البحث + الترتيب */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
@@ -138,7 +162,7 @@ function renderTable(){
     : `<tr><td colspan="4">No results</td></tr>`;
 }
 
-/* الجرد */
+/* الجرد (نسخ + وزن + ألوان عربي) */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return;
@@ -155,7 +179,9 @@ function generateInventory(){
     const count=parseInt(r.children[3].innerText);
     if(!count) return;
 
-    if(sizeMinusOneModels.includes(model)) num=Math.max(2,num-1);
+    if(sizeMinusOneModels.includes(model)) {
+      num=Math.max(2,num-1);
+    }
 
     let weight;
     if(isDouble){
@@ -166,7 +192,9 @@ function generateInventory(){
     }
     if(!weight) return;
 
-    const color=r.children[1].innerText;
+    const colorEn=r.children[1].innerText.toLowerCase().trim();
+    const color=colorMap[colorEn] || colorEn;
+
     if(!byColor[color]) byColor[color]={};
     byColor[color][weight]=(byColor[color][weight]||0)+count;
   });
