@@ -14,6 +14,7 @@ button{padding:4px 10px;font-size:11px;cursor:pointer}
 table{width:100%;border-collapse:collapse;background:#fff}
 th,td{border:1px solid #ddd;padding:6px;text-align:center}
 th{background:#f2f2f2}
+img{width:60px;height:auto;border-radius:4px}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -34,6 +35,7 @@ th{background:#f2f2f2}
 <table>
 <thead>
 <tr>
+  <th>Image</th>
   <th>Model</th>
   <th>Color</th>
   <th>Size</th>
@@ -41,7 +43,7 @@ th{background:#f2f2f2}
 </tr>
 </thead>
 <tbody id="dressesTable">
-<tr><td colspan="4">Loading...</td></tr>
+<tr><td colspan="5">Loading...</td></tr>
 </tbody>
 </table>
 
@@ -78,13 +80,11 @@ const doubleWeightByNum={
   5:"وزن 96–115"
 };
 
-// Oscar b قاعدة خاصة
 const oscarBWeightByNum={
   1:"وزن لحد 60",
   2:"وزن لحد 80"
 };
 
-// الألوان بالعربي
 const colorMap={
   "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
   "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
@@ -144,17 +144,23 @@ function renderTable(){
   });
 
   tableBody.innerHTML = rows.length
-    ? rows.map(d=>`
-      <tr>
-        <td>${d.model}</td>
-        <td>${d.color}</td>
-        <td>${d.size}</td>
-        <td>${d.count}</td>
-      </tr>`).join("")
-    : `<tr><td colspan="4">No results</td></tr>`;
+    ? rows.map(d=>{
+        const imgPath=`images/${d.model.toLowerCase()}.jpg`;
+        return `
+        <tr>
+          <td>
+            <img src="${imgPath}" onerror="this.style.display='none'">
+          </td>
+          <td>${d.model}</td>
+          <td>${d.color}</td>
+          <td>${d.size}</td>
+          <td>${d.count}</td>
+        </tr>`;
+      }).join("")
+    : `<tr><td colspan="5">No results</td></tr>`;
 }
 
-/* ===== الجرد (كل موديل لحاله) ===== */
+/* ===== الجرد ===== */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return;
@@ -162,45 +168,33 @@ function generateInventory(){
   let out="";
   const byModel={};
 
-  // 1) نجمع حسب الموديل
   rows.forEach(r=>{
-    const model=r.children[0].innerText.trim().toLowerCase();
+    const model=r.children[1].innerText.toLowerCase();
     if(!byModel[model]) byModel[model]=[];
     byModel[model].push(r);
   });
 
-  // 2) نجرد كل موديل لحاله
   Object.keys(byModel).forEach(model=>{
-    const rowsOfModel=byModel[model];
-    const isDouble=doubleModels.includes(model);
-
     out+=`==== ${model} ====\n\n`;
-
     const byColor={};
 
-    rowsOfModel.forEach(r=>{
-      let num=parseInt(r.children[2].innerText);
-      const count=parseInt(r.children[3].innerText);
+    byModel[model].forEach(r=>{
+      let num=parseInt(r.children[3].innerText);
+      const count=parseInt(r.children[4].innerText);
       if(!count) return;
 
-      if(sizeMinusOneModels.includes(model)){
-        num=Math.max(2,num-1);
-      }
+      if(sizeMinusOneModels.includes(model)) num=Math.max(2,num-1);
 
       let weight;
-      if(model==="oscar b"){
-        weight=oscarBWeightByNum[num];
-      }
-      else if(isDouble){
+      if(model==="oscar b") weight=oscarBWeightByNum[num];
+      else if(doubleModels.includes(model)){
         const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
         weight=doubleWeightByNum[idx];
-      }
-      else{
-        weight=normalWeightByNum[num];
-      }
+      } else weight=normalWeightByNum[num];
+
       if(!weight) return;
 
-      const colorEn=r.children[1].innerText.toLowerCase().trim();
+      const colorEn=r.children[2].innerText.toLowerCase();
       const color=colorMap[colorEn]||colorEn;
 
       if(!byColor[color]) byColor[color]={};
@@ -222,10 +216,11 @@ function generateInventory(){
   alert("تم نسخ الجرد ✔");
 }
 
-/* تفعيل البحث */
+/* البحث */
 [searchModel,searchColor,searchSize]
   .forEach(i=>i.addEventListener("input",renderTable));
 </script>
 
 </body>
 </html>
+
