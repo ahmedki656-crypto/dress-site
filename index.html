@@ -57,32 +57,39 @@ firebase.initializeApp({
 });
 const db=firebase.database();
 
-/* ===== القواعد (الجرد بالوزن – بدون أي تغيير) ===== */
+/* ===== قواعد الجرد (زي ما هي) ===== */
 const doubleModels=["simple","back less","sewar","koko","hand"];
 const sizeMinusOneModels=["funika","shabarat"];
 
 const normalWeightByNum={
-  2:"وزن 44–50",3:"وزن 51–57",4:"وزن 58–63",
-  5:"وزن 64–70",6:"وزن 71–76",
-  7:"وزن 77–82",8:"وزن 83–90",9:"وزن 91–96"
+  2:"وزن 44–50",
+  3:"وزن 51–57",
+  4:"وزن 58–63",
+  5:"وزن 64–70",
+  6:"وزن 71–76",
+  7:"وزن 77–82",
+  8:"وزن 83–90",
+  9:"وزن 91–96"
 };
 
 const doubleWeightByNum={
-  1:"وزن 44–50",2:"وزن 51–63",
-  3:"وزن 64–76",4:"وزن 77–90",5:"وزن 96–115"
+  1:"وزن 44–50",
+  2:"وزن 51–63",
+  3:"وزن 64–76",
+  4:"وزن 77–90",
+  5:"وزن 96–115"
 };
 
 const oscarBWeightByNum={
-  1:"وزن لحد 60",2:"وزن لحد 80"
+  1:"وزن لحد 60",
+  2:"وزن لحد 80"
 };
 
 const colorMap={
   "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
   "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
   "green":"أخضر","purple":"بنفسجي","yellow":"أصفر",
-  "beige":"بيج","brown":"بني","grey":"رمادي","smok":"رمادي","burghandi":"خمري",
-  "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
-  "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
+  "beige":"بيج","brown":"بني","grey":"رمادي","smok":"رمادي","burghandi":"خمري"
 };
 
 /* ===== عناصر ===== */
@@ -95,7 +102,13 @@ const copyBox=document.getElementById("copyBox");
 let allDresses=[];
 let modelsData={};
 
-/* ===== تحميل dresses ===== */
+/* ===== تحميل الصور (models) ===== */
+db.ref("/models").on("value",snap=>{
+  modelsData=snap.val()||{};
+  renderTable();
+});
+
+/* ===== تحميل الفساتين ===== */
 db.ref("/dresses").on("value",snap=>{
   allDresses=[];
   const data=snap.val()||{};
@@ -107,105 +120,8 @@ db.ref("/dresses").on("value",snap=>{
   renderTable();
 });
 
-/* ===== تحميل models (الصور) ===== */
-db.ref("/models").on("value",snap=>{
-  modelsData = snap.val() || {};
-  renderTable(); // ⭐⭐⭐ هذا السطر هو الحل
-});
-
 /* ===== عرض الجدول ===== */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
-  const sf=searchSize.value;
-
-  const grouped={};
-
-  allDresses
-    .filter(d=>
-      d.model.toLowerCase().includes(mf) &&
-      d.color.toLowerCase().includes(cf) &&
-      d.size.toString().includes(sf)
-    )
-    .forEach(d=>{
-      const k=`${d.model}_${d.color}_${d.size}`;
-      if(!grouped[k]) grouped[k]={...d,count:0};
-      grouped[k].count++;
-    });
-
-  const rows=Object.values(grouped);
-
-  tableBody.innerHTML = rows.length
-    ? rows.map(d=>{
-        const modelKey=d.model.toLowerCase();
-        const img=modelsData[modelKey]?.image_url || "";
-        return `
-        <tr>
-          <td>${img?`<img src="${img}">`:""}</td>
-          <td>${d.model}</td>
-          <td>${d.color}</td>
-          <td>${d.size}</td>
-          <td>${d.count}</td>
-        </tr>`;
-      }).join("")
-    : `<tr><td colspan="5">No results</td></tr>`;
-}
-
-/* ===== الجرد ===== */
-function generateInventory(){
-  const rows=[...tableBody.querySelectorAll("tr")];
-  let out="",byModel={};
-
-  rows.forEach(r=>{
-    const model=r.children[1].innerText.toLowerCase();
-    if(!byModel[model]) byModel[model]=[];
-    byModel[model].push(r);
-  });
-
-  Object.keys(byModel).forEach(model=>{
-    out+=`==== ${model} ====\n\n`;
-    const byColor={};
-
-    byModel[model].forEach(r=>{
-      let num=parseInt(r.children[3].innerText);
-      const count=parseInt(r.children[4].innerText);
-      if(!count) return;
-
-      if(sizeMinusOneModels.includes(model)) num=Math.max(2,num-1);
-
-      let weight;
-      if(model==="oscar b") weight=oscarBWeightByNum[num];
-      else if(doubleModels.includes(model)){
-        const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
-        weight=doubleWeightByNum[idx];
-      } else weight=normalWeightByNum[num];
-
-      const colorEn=r.children[2].innerText.toLowerCase();
-      const color=colorMap[colorEn]||colorEn;
-
-      if(!byColor[color]) byColor[color]={};
-      byColor[color][weight]=(byColor[color][weight]||0)+count;
-    });
-
-    Object.keys(byColor).forEach(c=>{
-      out+=`${c}:\n`;
-      Object.keys(byColor[c]).forEach(w=>{
-        out+=`${w} عدد ${byColor[c][w]}\n`;
-      });
-      out+="\n";
-    });
-  });
-
-  copyBox.value=out.trim();
-  copyBox.select();
-  document.execCommand("copy");
-  alert("تم نسخ الجرد ✔");
-}
-
-/* البحث */
-[searchModel,searchColor,searchSize]
-  .forEach(i=>i.addEventListener("input",renderTable));
-</script>
-
-</body>
-</html>
+  const sf=
