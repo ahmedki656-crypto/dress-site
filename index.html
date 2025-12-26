@@ -29,6 +29,7 @@ img{width:60px;height:auto;border-radius:4px}
   <input id="searchModel" placeholder="Model">
   <input id="searchColor" placeholder="Color">
   <input id="searchSize" placeholder="Size">
+  <button onclick="generateInventory()">جرد</button>
 </div>
 
 <table>
@@ -46,29 +47,69 @@ img{width:60px;height:auto;border-radius:4px}
 </tbody>
 </table>
 
+<textarea id="copyBox" style="position:fixed;left:-9999px;"></textarea>
+
 <script>
-/* ===== Firebase ===== */
+/* Firebase */
 firebase.initializeApp({
   apiKey:"AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
   databaseURL:"https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
 });
-const db = firebase.database();
+const db=firebase.database();
 
-/* ===== تحميل صور الموديلات ===== */
-let modelImages = {};
-db.ref("/models").on("value", snap => {
-  modelImages = snap.val() || {};
-});
+/* ===== القواعد (كما هي) ===== */
+const doubleModels=["simple","back less","sewar","koko","hand"];
+const sizeMinusOneModels=["funika","shabarat"];
+
+const normalWeightByNum={
+  2:"وزن 44–50",
+  3:"وزن 51–57",
+  4:"وزن 58–63",
+  5:"وزن 64–70",
+  6:"وزن 71–76",
+  7:"وزن 77–82",
+  8:"وزن 83–90",
+  9:"وزن 91–96"
+};
+
+const doubleWeightByNum={
+  1:"وزن 44–50",
+  2:"وزن 51–63",
+  3:"وزن 64–76",
+  4:"وزن 77–90",
+  5:"وزن 96–115"
+};
+
+const oscarBWeightByNum={
+  1:"وزن لحد 60",
+  2:"وزن لحد 80"
+};
+
+const colorMap={
+  "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
+  "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
+  "green":"أخضر","purple":"بنفسجي","yellow":"أصفر",
+  "beige":"بيج","brown":"بني","grey":"رمادي","smok":"رمادي","burghandi":"خمري",
+  "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
+  "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
+};
 
 /* ===== عناصر ===== */
 const tableBody=document.getElementById("dressesTable");
 const searchModel=document.getElementById("searchModel");
 const searchColor=document.getElementById("searchColor");
 const searchSize=document.getElementById("searchSize");
+const copyBox=document.getElementById("copyBox");
 
 let allDresses=[];
+let modelsData={};
 
-/* ===== تحميل القطع ===== */
+/* ===== تحميل models (للصور) ===== */
+db.ref("/models").on("value",snap=>{
+  modelsData=snap.val()||{};
+});
+
+/* ===== تحميل dresses ===== */
 db.ref("/dresses").on("value",snap=>{
   allDresses=[];
   const data=snap.val()||{};
@@ -110,14 +151,10 @@ function renderTable(){
 
   tableBody.innerHTML = rows.length
     ? rows.map(d=>{
-        const imgPath =
-          modelImages[d.model?.toLowerCase()]?.image_url || "";
-
+        const img=modelsData[d.model?.toLowerCase()]?.image_url;
         return `
         <tr>
-          <td>
-            <img src="${imgPath}" onerror="this.style.display='none'">
-          </td>
+          <td>${img?`<img src="${img}">`:""}</td>
           <td>${d.model}</td>
           <td>${d.color}</td>
           <td>${d.size}</td>
@@ -127,7 +164,63 @@ function renderTable(){
     : `<tr><td colspan="5">No results</td></tr>`;
 }
 
-/* ===== البحث ===== */
+/* ===== الجرد (كما هو) ===== */
+function generateInventory(){
+  const rows=[...tableBody.querySelectorAll("tr")];
+  if(!rows.length) return;
+
+  let out="";
+  const byModel={};
+
+  rows.forEach(r=>{
+    const model=r.children[1].innerText.toLowerCase();
+    if(!byModel[model]) byModel[model]=[];
+    byModel[model].push(r);
+  });
+
+  Object.keys(byModel).forEach(model=>{
+    out+=`==== ${model} ====\n\n`;
+    const byColor={};
+
+    byModel[model].forEach(r=>{
+      let num=parseInt(r.children[3].innerText);
+      const count=parseInt(r.children[4].innerText);
+      if(!count) return;
+
+      if(sizeMinusOneModels.includes(model)) num=Math.max(2,num-1);
+
+      let weight;
+      if(model==="oscar b") weight=oscarBWeightByNum[num];
+      else if(doubleModels.includes(model)){
+        const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
+        weight=doubleWeightByNum[idx];
+      } else weight=normalWeightByNum[num];
+
+      if(!weight) return;
+
+      const colorEn=r.children[2].innerText.toLowerCase();
+      const color=colorMap[colorEn]||colorEn;
+
+      if(!byColor[color]) byColor[color]={};
+      byColor[color][weight]=(byColor[color][weight]||0)+count;
+    });
+
+    Object.keys(byColor).forEach(c=>{
+      out+=`${c}:\n`;
+      Object.keys(byColor[c]).forEach(w=>{
+        out+=`${w} عدد ${byColor[c][w]}\n`;
+      });
+      out+="\n";
+    });
+  });
+
+  copyBox.value=out.trim();
+  copyBox.select();
+  document.execCommand("copy");
+  alert("تم نسخ الجرد ✔");
+}
+
+/* البحث */
 [searchModel,searchColor,searchSize]
   .forEach(i=>i.addEventListener("input",renderTable));
 </script>
