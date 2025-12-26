@@ -1,39 +1,231 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
-<title>Talia Image Test</title>
+<title>Available Dresses</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{
-  font-family: Arial;
-  text-align: center;
-  padding: 40px;
-}
-.box{
-  border: 3px dashed red;
-  padding: 20px;
-  display: inline-block;
-}
-img{
-  width: 250px;
-  height: auto;
-}
+body{font-family:Arial;font-size:12px;background:#f9f9f9;padding:10px}
+h2{text-align:center;font-size:16px}
+.search-container{display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
+input{padding:4px;width:90px;font-size:11px}
+button{padding:4px 10px;font-size:11px;cursor:pointer}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{border:1px solid #ddd;padding:6px;text-align:center}
+th{background:#f2f2f2}
 </style>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 
 <body>
 
-<h2>TEST IMAGE FOR MODEL: talia</h2>
+<h2>Available Dresses</h2>
 
-<div class="box">
-  <p>إذا شفت الصورة → الرابط شغال 100%</p>
-  <img 
-    src="https://drive.google.com/uc?export=view&id=1RG5EVVuM3EtW7Klasu2FRsIiChBg-bmi"
-    alt="talia test image"
-    onerror="this.outerHTML='<b style=color:red>❌ الصورة ما انعرضت</b>'"
-  >
+<div class="search-container">
+  <input id="searchModel" placeholder="Model">
+  <input id="searchColor" placeholder="Color">
+  <input id="searchSize" placeholder="Size">
+  <button onclick="generateInventory()">جرد</button>
 </div>
+
+<table>
+<thead>
+<tr>
+  <th>Model</th>
+  <th>Color</th>
+  <th>Size</th>
+  <th>Count</th>
+</tr>
+</thead>
+<tbody id="dressesTable">
+<tr><td colspan="4">Loading...</td></tr>
+</tbody>
+</table>
+
+<textarea id="copyBox" style="position:fixed;left:-9999px;"></textarea>
+
+<script>
+/* Firebase */
+firebase.initializeApp({
+  apiKey:"AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
+  databaseURL:"https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
+});
+const db=firebase.database();
+
+/* ===== القواعد ===== */
+const doubleModels=["simple","back less","sewar","koko","hand"];
+const sizeMinusOneModels=["funika","shabarat"];
+
+const normalWeightByNum={
+  2:"وزن 44–50",
+  3:"وزن 51–57",
+  4:"وزن 58–63",
+  5:"وزن 64–70",
+  6:"وزن 71–76",
+  7:"وزن 77–82",
+  8:"وزن 83–90",
+  9:"وزن 91–96"
+};
+
+const doubleWeightByNum={
+  1:"وزن 44–50",
+  2:"وزن 51–63",
+  3:"وزن 64–76",
+  4:"وزن 77–90",
+  5:"وزن 96–115"
+};
+
+// Oscar b قاعدة خاصة
+const oscarBWeightByNum={
+  1:"وزن لحد 60",
+  2:"وزن لحد 80"
+};
+
+// الألوان بالعربي
+const colorMap={
+  "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
+  "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
+  "green":"أخضر","purple":"بنفسجي","yellow":"أصفر",
+  "beige":"بيج","brown":"بني","grey":"رمادي","smok":"رمادي","burghandi":"خمري",
+  "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
+  "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
+};
+
+/* ===== عناصر ===== */
+const tableBody=document.getElementById("dressesTable");
+const searchModel=document.getElementById("searchModel");
+const searchColor=document.getElementById("searchColor");
+const searchSize=document.getElementById("searchSize");
+const copyBox=document.getElementById("copyBox");
+
+let allDresses=[];
+
+/* ===== تحميل البيانات ===== */
+db.ref("/dresses").on("value",snap=>{
+  allDresses=[];
+  const data=snap.val()||{};
+  for(const k in data){
+    if((data[k].status||"").toLowerCase()==="in_stock"){
+      allDresses.push(data[k]);
+    }
+  }
+  renderTable();
+});
+
+/* ===== عرض الجدول ===== */
+function renderTable(){
+  const mf=searchModel.value.toLowerCase();
+  const cf=searchColor.value.toLowerCase();
+  const sf=searchSize.value;
+
+  const grouped={};
+
+  allDresses
+    .filter(d=>
+      d.model.toLowerCase().includes(mf) &&
+      d.color.toLowerCase().includes(cf) &&
+      d.size.toString().includes(sf)
+    )
+    .forEach(d=>{
+      const k=`${d.model}_${d.color}_${d.size}`;
+      if(!grouped[k]) grouped[k]={...d,count:0};
+      grouped[k].count++;
+    });
+
+  const rows=Object.values(grouped);
+
+  rows.sort((a,b)=>{
+    if(a.model.toLowerCase()<b.model.toLowerCase()) return -1;
+    if(a.model.toLowerCase()>b.model.toLowerCase()) return 1;
+    return parseInt(a.size)-parseInt(b.size);
+  });
+
+  tableBody.innerHTML = rows.length
+    ? rows.map(d=>`
+      <tr>
+        <td>${d.model}</td>
+        <td>${d.color}</td>
+        <td>${d.size}</td>
+        <td>${d.count}</td>
+      </tr>`).join("")
+    : `<tr><td colspan="4">No results</td></tr>`;
+}
+
+/* ===== الجرد (كل موديل لحاله) ===== */
+function generateInventory(){
+  const rows=[...tableBody.querySelectorAll("tr")];
+  if(!rows.length) return;
+
+  let out="";
+  const byModel={};
+
+  // 1) نجمع حسب الموديل
+  rows.forEach(r=>{
+    const model=r.children[0].innerText.trim().toLowerCase();
+    if(!byModel[model]) byModel[model]=[];
+    byModel[model].push(r);
+  });
+
+  // 2) نجرد كل موديل لحاله
+  Object.keys(byModel).forEach(model=>{
+    const rowsOfModel=byModel[model];
+    const isDouble=doubleModels.includes(model);
+
+    out+=`==== ${model} ====\n\n`;
+
+    const byColor={};
+
+    rowsOfModel.forEach(r=>{
+      let num=parseInt(r.children[2].innerText);
+      const count=parseInt(r.children[3].innerText);
+      if(!count) return;
+
+      if(sizeMinusOneModels.includes(model)){
+        num=Math.max(2,num-1);
+      }
+
+      let weight;
+      if(model==="oscar b"){
+        weight=oscarBWeightByNum[num];
+      }
+      else if(isDouble){
+        const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
+        weight=doubleWeightByNum[idx];
+      }
+      else{
+        weight=normalWeightByNum[num];
+      }
+      if(!weight) return;
+
+      const colorEn=r.children[1].innerText.toLowerCase().trim();
+      const color=colorMap[colorEn]||colorEn;
+
+      if(!byColor[color]) byColor[color]={};
+      byColor[color][weight]=(byColor[color][weight]||0)+count;
+    });
+
+    Object.keys(byColor).forEach(c=>{
+      out+=`${c}:\n`;
+      Object.keys(byColor[c]).forEach(w=>{
+        out+=`${w} عدد ${byColor[c][w]}\n`;
+      });
+      out+="\n";
+    });
+  });
+
+  copyBox.value=out.trim();
+  copyBox.select();
+  document.execCommand("copy");
+  alert("تم نسخ الجرد ✔");
+}
+
+/* تفعيل البحث */
+[searchModel,searchColor,searchSize]
+  .forEach(i=>i.addEventListener("input",renderTable));
+</script>
 
 </body>
 </html>
