@@ -57,7 +57,7 @@ firebase.initializeApp({
 });
 const db=firebase.database();
 
-/* ===== قواعد الجرد (زي ما هي) ===== */
+/* ===== القواعد (زي ما هي) ===== */
 const doubleModels=["simple","back less","sewar","koko","hand"];
 const sizeMinusOneModels=["funika","shabarat"];
 
@@ -89,7 +89,9 @@ const colorMap={
   "black":"أسود","white":"أبيض","red":"أحمر","pink":"زهري",
   "blue":"أزرق","baby blue":"أزرق","dark blue":"كحلي","royale blue":"أزرق نيلي",
   "green":"أخضر","purple":"بنفسجي","yellow":"أصفر",
-  "beige":"بيج","brown":"بني","grey":"رمادي","smok":"رمادي","burghandi":"خمري"
+  "beige":"بيج","brown":"بني","grey":"رمادي","smok":"رمادي","burghandi":"خمري",
+  "black & white":"أبيض وأسود","white & black":"أبيض وأسود",
+  "black&white":"أبيض وأسود","white&black":"أبيض وأسود"
 };
 
 /* ===== عناصر ===== */
@@ -102,18 +104,18 @@ const copyBox=document.getElementById("copyBox");
 let allDresses=[];
 let modelsData={};
 
-/* ===== تحميل الصور (models) ===== */
+/* ===== تحميل models (الصور) ===== */
 db.ref("/models").on("value",snap=>{
-  modelsData=snap.val()||{};
+  modelsData = snap.val() || {};
   renderTable();
 });
 
-/* ===== تحميل الفساتين ===== */
+/* ===== تحميل dresses ===== */
 db.ref("/dresses").on("value",snap=>{
   allDresses=[];
   const data=snap.val()||{};
   for(const k in data){
-    if((data[k].status||"")==="in_stock"){
+    if((data[k].status||"").toLowerCase()==="in_stock"){
       allDresses.push(data[k]);
     }
   }
@@ -124,4 +126,105 @@ db.ref("/dresses").on("value",snap=>{
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
-  const sf=
+  const sf=searchSize.value;
+
+  const grouped={};
+
+  allDresses
+    .filter(d=>
+      d.model.toLowerCase().includes(mf) &&
+      d.color.toLowerCase().includes(cf) &&
+      d.size.toString().includes(sf)
+    )
+    .forEach(d=>{
+      const k=`${d.model}_${d.color}_${d.size}`;
+      if(!grouped[k]) grouped[k]={...d,count:0};
+      grouped[k].count++;
+    });
+
+  const rows=Object.values(grouped);
+
+  rows.sort((a,b)=>{
+    if(a.model.toLowerCase()<b.model.toLowerCase()) return -1;
+    if(a.model.toLowerCase()>b.model.toLowerCase()) return 1;
+    return parseInt(a.size)-parseInt(b.size);
+  });
+
+  tableBody.innerHTML = rows.length
+    ? rows.map(d=>{
+        const imgPath = modelsData[d.model.toLowerCase()]?.image_url || "";
+        return `
+        <tr>
+          <td>${imgPath ? `<img src="${imgPath}">` : ""}</td>
+          <td>${d.model}</td>
+          <td>${d.color}</td>
+          <td>${d.size}</td>
+          <td>${d.count}</td>
+        </tr>`;
+      }).join("")
+    : `<tr><td colspan="5">No results</td></tr>`;
+}
+
+/* ===== الجرد (ولا حرف متغير) ===== */
+function generateInventory(){
+  const rows=[...tableBody.querySelectorAll("tr")];
+  if(!rows.length) return;
+
+  let out="";
+  const byModel={};
+
+  rows.forEach(r=>{
+    const model=r.children[1].innerText.toLowerCase();
+    if(!byModel[model]) byModel[model]=[];
+    byModel[model].push(r);
+  });
+
+  Object.keys(byModel).forEach(model=>{
+    out+=`==== ${model} ====\n\n`;
+    const byColor={};
+
+    byModel[model].forEach(r=>{
+      let num=parseInt(r.children[3].innerText);
+      const count=parseInt(r.children[4].innerText);
+      if(!count) return;
+
+      if(sizeMinusOneModels.includes(model)) num=Math.max(2,num-1);
+
+      let weight;
+      if(model==="oscar b") weight=oscarBWeightByNum[num];
+      else if(doubleModels.includes(model)){
+        const idx=num<=3?1:num<=5?2:num<=7?3:num==8?4:5;
+        weight=doubleWeightByNum[idx];
+      } else weight=normalWeightByNum[num];
+
+      if(!weight) return;
+
+      const colorEn=r.children[2].innerText.toLowerCase();
+      const color=colorMap[colorEn]||colorEn;
+
+      if(!byColor[color]) byColor[color]={};
+      byColor[color][weight]=(byColor[color][weight]||0)+count;
+    });
+
+    Object.keys(byColor).forEach(c=>{
+      out+=`${c}:\n`;
+      Object.keys(byColor[c]).forEach(w=>{
+        out+=`${w} عدد ${byColor[c][w]}\n`;
+      });
+      out+="\n";
+    });
+  });
+
+  copyBox.value=out.trim();
+  copyBox.select();
+  document.execCommand("copy");
+  alert("تم نسخ الجرد ✔");
+}
+
+/* البحث */
+[searchModel,searchColor,searchSize]
+  .forEach(i=>i.addEventListener("input",renderTable));
+</script>
+
+</body>
+</html>
