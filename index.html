@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Available Dresses</title>
+<title>Test Linda Image</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{font-family:Arial;font-size:12px;background:#f9f9f9;padding:10px}
-h2{text-align:center;font-size:16px}
-.search-container{display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
-input{padding:4px;width:90px;font-size:11px}
-button{padding:4px 10px;font-size:11px;cursor:pointer}
-table{width:100%;border-collapse:collapse;background:#fff}
-th,td{border:1px solid #ddd;padding:6px;text-align:center}
-th{background:#f2f2f2}
-img{width:50px;border-radius:6px}
+body{
+  font-family: Arial;
+  text-align: center;
+  margin-top: 40px;
+}
+img{
+  width: 200px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -23,112 +24,38 @@ img{width:50px;border-radius:6px}
 
 <body>
 
-<h2>Available Dresses</h2>
+<h2>Test Image for Model: linda</h2>
 
-<div class="search-container">
-  <input id="searchModel" placeholder="Model">
-  <input id="searchColor" placeholder="Color">
-  <input id="searchSize" placeholder="Size">
-</div>
-
-<table>
-<thead>
-<tr>
-  <th>Image</th>
-  <th>Model</th>
-  <th>Color</th>
-  <th>Size</th>
-  <th>Count</th>
-</tr>
-</thead>
-<tbody id="dressesTable">
-<tr><td colspan="5">Loading...</td></tr>
-</tbody>
-</table>
+<div id="result">Loading...</div>
 
 <script>
 firebase.initializeApp({
-  apiKey:"AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-  databaseURL:"https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
-});
-const db=firebase.database();
-
-const tableBody=document.getElementById("dressesTable");
-const searchModel=document.getElementById("searchModel");
-const searchColor=document.getElementById("searchColor");
-const searchSize=document.getElementById("searchSize");
-
-let allDresses=[];
-let modelsData={};
-
-/* تحميل الموديلات + الصور */
-db.ref("/models").on("value",snap=>{
-  modelsData=snap.val()||{};
-  renderTable();
+  apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
+  databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
 });
 
-/* تحميل الفساتين */
-db.ref("/dresses").on("value",snap=>{
-  allDresses=[];
-  const data=snap.val()||{};
-  for(const k in data){
-    if((data[k].status||"").toLowerCase()==="in_stock"){
-      allDresses.push(data[k]);
-    }
+const db = firebase.database();
+
+db.ref("/models/linda").once("value").then(snap => {
+  const data = snap.val();
+
+  if(data && data.image_url){
+    document.getElementById("result").innerHTML = `
+      <img src="${data.image_url}"
+           onerror="this.outerHTML='<p style=color:red>❌ Image failed to load</p>'">
+      <p>✅ Image URL loaded</p>
+    `;
+  } else {
+    document.getElementById("result").innerHTML =
+      "<p style='color:red'>❌ No image_url found in Firebase</p>";
   }
-  renderTable();
 });
-
-/* جلب صورة الموديل */
-function getImageByModel(model){
-  const m=model.toLowerCase();
-  if(modelsData[m] && modelsData[m].image_url){
-    return `<img src="${modelsData[m].image_url}">`;
-  }
-  return "";
-}
-
-/* رسم الجدول */
-function renderTable(){
-  const mf=searchModel.value.toLowerCase();
-  const cf=searchColor.value.toLowerCase();
-  const sf=searchSize.value;
-
-  const grouped={};
-
-  allDresses
-    .filter(d=>
-      d.model.toLowerCase().includes(mf) &&
-      d.color.toLowerCase().includes(cf) &&
-      d.size.toString().includes(sf)
-    )
-    .forEach(d=>{
-      const k=`${d.model}_${d.color}_${d.size}`;
-      if(!grouped[k]) grouped[k]={...d,count:0};
-      grouped[k].count++;
-    });
-
-  const rows=Object.values(grouped);
-
-  tableBody.innerHTML=rows.length
-    ? rows.map(d=>`
-      <tr>
-        <td>${getImageByModel(d.model)}</td>
-        <td>${d.model}</td>
-        <td>${d.color}</td>
-        <td>${d.size}</td>
-        <td>${d.count}</td>
-      </tr>`).join("")
-    : `<tr><td colspan="5">No results</td></tr>`;
-}
-
-/* تفعيل البحث */
-[searchModel,searchColor,searchSize]
-  .forEach(i=>i.addEventListener("input",renderTable));
 </script>
 
 </body>
 </html>
+
+
 
 
 
