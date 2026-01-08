@@ -14,7 +14,7 @@ button{padding:4px 10px;font-size:11px;cursor:pointer}
 table{width:100%;border-collapse:collapse;background:#fff}
 th,td{border:1px solid #ddd;padding:6px;text-align:center}
 th{background:#f2f2f2}
-img{width:40px;height:auto;border-radius:4px}
+img{width:50px;border-radius:6px}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -29,7 +29,6 @@ img{width:40px;height:auto;border-radius:4px}
   <input id="searchModel" placeholder="Model">
   <input id="searchColor" placeholder="Color">
   <input id="searchSize" placeholder="Size">
-  <button onclick="generateInventory()">جرد</button>
 </div>
 
 <table>
@@ -60,7 +59,15 @@ const searchColor=document.getElementById("searchColor");
 const searchSize=document.getElementById("searchSize");
 
 let allDresses=[];
+let modelsData={};
 
+/* تحميل الموديلات + الصور */
+db.ref("/models").on("value",snap=>{
+  modelsData=snap.val()||{};
+  renderTable();
+});
+
+/* تحميل الفساتين */
 db.ref("/dresses").on("value",snap=>{
   allDresses=[];
   const data=snap.val()||{};
@@ -72,13 +79,16 @@ db.ref("/dresses").on("value",snap=>{
   renderTable();
 });
 
-function getImage(model){
-  if(model.toLowerCase()==="linda"){
-    return `<img src="https://via.placeholder.com/80x120?text=Linda">`;
+/* جلب صورة الموديل */
+function getImageByModel(model){
+  const m=model.toLowerCase();
+  if(modelsData[m] && modelsData[m].image_url){
+    return `<img src="${modelsData[m].image_url}">`;
   }
   return "";
 }
 
+/* رسم الجدول */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
@@ -100,10 +110,10 @@ function renderTable(){
 
   const rows=Object.values(grouped);
 
-  tableBody.innerHTML = rows.length
+  tableBody.innerHTML=rows.length
     ? rows.map(d=>`
       <tr>
-        <td>${getImage(d.model)}</td>
+        <td>${getImageByModel(d.model)}</td>
         <td>${d.model}</td>
         <td>${d.color}</td>
         <td>${d.size}</td>
@@ -112,11 +122,14 @@ function renderTable(){
     : `<tr><td colspan="5">No results</td></tr>`;
 }
 
+/* تفعيل البحث */
 [searchModel,searchColor,searchSize]
   .forEach(i=>i.addEventListener("input",renderTable));
 </script>
 
 </body>
 </html>
+
+
 
 
