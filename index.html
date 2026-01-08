@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Test Linda Image</title>
+<title>Linda Image Test</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -12,51 +12,24 @@ body{
   margin-top: 40px;
 }
 img{
-  width: 200px;
-  border: 2px solid #ccc;
+  width: 250px;
+  border: 2px solid #333;
   border-radius: 8px;
 }
 </style>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 
 <body>
 
-<h2>Test Image for Model: linda</h2>
+<h2>Direct Image Test (Linda)</h2>
 
-<div id="result">Loading...</div>
+<img 
+  src="PUT_IMAGE_URL_HERE"
+  onload="document.getElementById('status').innerText='✅ Image loaded successfully'"
+  onerror="document.getElementById('status').innerText='❌ Image failed to load'"
+>
 
-<script>
-firebase.initializeApp({
-  apiKey: "AIzaSyBDVd2SHAmtIbJGlH0lrnPSz-eHfsg6Gyc",
-  databaseURL: "https://show-inventory-default-rtdb.europe-west1.firebasedatabase.app"
-});
-
-const db = firebase.database();
-
-db.ref("/models/linda").once("value").then(snap => {
-  const data = snap.val();
-
-  if(data && data.image_url){
-    document.getElementById("result").innerHTML = `
-      <img src="${data.image_url}"
-           onerror="this.outerHTML='<p style=color:red>❌ Image failed to load</p>'">
-      <p>✅ Image URL loaded</p>
-    `;
-  } else {
-    document.getElementById("result").innerHTML =
-      "<p style='color:red'>❌ No image_url found in Firebase</p>";
-  }
-});
-</script>
+<p id="status">Loading...</p>
 
 </body>
 </html>
-
-
-
-
-
-
