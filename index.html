@@ -7,8 +7,8 @@
 
 <style>
 body{
-  font-family: Arial;
-  font-size: 12px;
+  font-family:Arial;
+  font-size:12px;
   background:#f9f9f9;
   padding:10px
 }
@@ -48,8 +48,7 @@ th{
 }
 img{
   width:45px;
-  border-radius:6px;
-  cursor:pointer
+  border-radius:6px
 }
 </style>
 
@@ -93,7 +92,7 @@ firebase.initializeApp({
 });
 const db=firebase.database();
 
-/* ===== قواعد الجرد ===== */
+/* ===== قواعد الجرد (كما كانت) ===== */
 const doubleModels=["simple","back less","sewar","koko","hand"];
 const sizeMinusOneModels=["funika","shabarat"];
 
@@ -155,13 +154,10 @@ db.ref("/dresses").on("value",snap=>{
 /* صورة الموديل من GitHub */
 function getImageByModel(model){
   const name=model.toLowerCase();
-  return `
-    <img src="images/${name}.png"
-         onerror="this.style.display='none'">
-  `;
+  return `<img src="images/${name}.png" onerror="this.style.display='none'">`;
 }
 
-/* عرض الجدول */
+/* ===== عرض الجدول (ترتيب قديم مضبوط) ===== */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
@@ -176,17 +172,22 @@ function renderTable(){
       d.size.toString().includes(sf)
     )
     .forEach(d=>{
-      const k=`${d.model}_${d.color}_${d.size}`;
-      if(!grouped[k]) grouped[k]={...d,count:0};
-      grouped[k].count++;
+      const key=`${d.model}_${d.color}_${d.size}`;
+      if(!grouped[key]) grouped[key]={...d,count:0};
+      grouped[key].count++;
     });
 
   const rows=Object.values(grouped);
 
+  /* ⭐ الترتيب الأصلي:
+     1) Model أبجدي
+     2) Size رقمي */
   rows.sort((a,b)=>{
-    if(a.model<b.model) return -1;
-    if(a.model>b.model) return 1;
-    return a.size-b.size;
+    const mA=a.model.toLowerCase();
+    const mB=b.model.toLowerCase();
+    if(mA < mB) return -1;
+    if(mA > mB) return 1;
+    return parseInt(a.size) - parseInt(b.size);
   });
 
   tableBody.innerHTML = rows.length
@@ -197,11 +198,12 @@ function renderTable(){
         <td>${d.color}</td>
         <td>${d.size}</td>
         <td>${d.count}</td>
-      </tr>`).join("")
+      </tr>
+    `).join("")
     : `<tr><td colspan="5">No results</td></tr>`;
 }
 
-/* ===== الجرد ===== */
+/* ===== الجرد (كما كان) ===== */
 function generateInventory(){
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return;
