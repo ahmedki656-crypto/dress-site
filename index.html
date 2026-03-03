@@ -50,6 +50,32 @@ img{
   width:45px;
   border-radius:6px
 }
+
+/* popup */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+.modal-box{
+  background:#fff;
+  padding:20px;
+  border-radius:10px;
+  text-align:center;
+  width:250px;
+}
+.modal-box h3{
+  margin-bottom:15px;
+}
+.modal-box button{
+  margin:5px;
+  padding:6px 12px;
+  font-size:12px;
+}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -64,7 +90,7 @@ img{
   <input id="searchModel" placeholder="Model">
   <input id="searchColor" placeholder="Color">
   <input id="searchSize" placeholder="Size">
-  <button onclick="generateInventory()">جرد</button>
+  <button onclick="openSizeSelector()">جرد</button>
 </div>
 
 <table>
@@ -84,6 +110,15 @@ img{
 
 <textarea id="copyBox" style="position:fixed;left:-9999px;"></textarea>
 
+<!-- popup -->
+<div id="sizeModal" class="modal" style="display:none;">
+  <div class="modal-box">
+    <h3>اختر نظام المقاسات</h3>
+    <button onclick="generateInventory('4')">4 نمر</button>
+    <button onclick="generateInventory('8')">8 نمر</button>
+  </div>
+</div>
+
 <script>
 
 /* Firebase */
@@ -93,10 +128,7 @@ firebase.initializeApp({
 });
 const db=firebase.database();
 
-/* قواعد الجرد */
-const doubleModels=["simple","back less","sewar","koko","hand"];
-const sizeMinusOneModels=["funika","shabarat"];
-
+/* جداول الوزن */
 const normalWeightByNum={
   2:"وزن 44–50",
   3:"وزن 51–57",
@@ -108,11 +140,11 @@ const normalWeightByNum={
   9:"وزن 91–96"
 };
 
-const doubleWeightByNum={
+const fourWeightByNum={
   1:"وزن 44–57",
-  2:"وزن 58-70",
-  3:"وزن 71-82",
-  4:"وزن 96–83",
+  2:"وزن 58–70",
+  3:"وزن 71–82",
+  4:"وزن 83–96",
   5:"وزن 96–115"
 };
 
@@ -136,6 +168,7 @@ const searchModel=document.getElementById("searchModel");
 const searchColor=document.getElementById("searchColor");
 const searchSize=document.getElementById("searchSize");
 const copyBox=document.getElementById("copyBox");
+const modal=document.getElementById("sizeModal");
 
 let allDresses=[];
 
@@ -157,7 +190,7 @@ function getImageByModel(model){
   return `<img src="images/${name}.png" onerror="this.style.display='none'">`;
 }
 
-/* عرض الجدول */
+/* عرض */
 function renderTable(){
   const mf=searchModel.value.toLowerCase();
   const cf=searchColor.value.toLowerCase();
@@ -200,22 +233,15 @@ function renderTable(){
     : `<tr><td colspan="5">No results</td></tr>`;
 }
 
-/* سؤال 4 أو 8 نمر */
-function askSizeType(){
-  const choice = prompt("اكتب 8 اذا الموديل 8 نمر\nاكتب 4 اذا الموديل 4 نمر");
-  if(choice==="8" || choice==="4"){
-    return choice;
-  }else{
-    alert("الرجاء إدخال 8 أو 4 فقط");
-    return null;
-  }
+/* فتح البوكس */
+function openSizeSelector(){
+  modal.style.display="flex";
 }
 
 /* الجرد */
-function generateInventory(){
+function generateInventory(sizeType){
 
-  const sizeType = askSizeType();
-  if(!sizeType) return;
+  modal.style.display="none";
 
   const rows=[...tableBody.querySelectorAll("tr")];
   if(!rows.length) return;
@@ -231,7 +257,6 @@ function generateInventory(){
 
   Object.keys(byModel).forEach(model=>{
     const rowsOfModel=byModel[model];
-    const isDouble=doubleModels.includes(model);
 
     out+=`==== ${model} ====\n\n`;
     const byColor={};
@@ -241,32 +266,25 @@ function generateInventory(){
       const count=parseInt(r.children[4].innerText);
       if(!count) return;
 
-      if(sizeMinusOneModels.includes(model)){
-        num=Math.max(2,num-1);
-      }
-
       let weight;
 
       if(model==="oscar b"){
         weight=oscarBWeightByNum[num];
       }
-      else if(isDouble){
+      else{
 
         if(sizeType==="4"){
-          const idx=num<=3?1:
-                    num<=5?2:
-                    num<=7?3:
-                    num==8?4:5;
+          const idx = num<=3 ? 1 :
+                      num<=5 ? 2 :
+                      num<=7 ? 3 :
+                      num==8 ? 4 : 5;
 
-          weight=doubleWeightByNum[idx];
+          weight = fourWeightByNum[idx];
         }
 
         if(sizeType==="8"){
-          weight=normalWeightByNum[num];
+          weight = normalWeightByNum[num];
         }
-      }
-      else{
-        weight=normalWeightByNum[num];
       }
 
       if(!weight) return;
@@ -301,4 +319,3 @@ function generateInventory(){
 
 </body>
 </html>
-
