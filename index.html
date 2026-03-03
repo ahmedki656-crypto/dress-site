@@ -274,13 +274,8 @@ function generateInventory(sizeType){
       else{
 
         if(sizeType==="4"){
-          const idx = num<=3 ? 1 :
-                      num<=5 ? 2 :
-                      num<=7 ? 3 :
-                      num==8 ? 4 : 5;
-
-          weight = fourWeightByNum[idx];
-        }
+          weight = fourWeightByNum[num];
+       }
 
         if(sizeType==="8"){
           weight = normalWeightByNum[num];
@@ -319,3 +314,4 @@ function generateInventory(sizeType){
 
 </body>
 </html>
+
